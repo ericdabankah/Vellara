@@ -35,23 +35,14 @@ const JSON_HEADERS = {
   "x-content-type-options": "nosniff",
 };
 
-function json(
-  data: unknown,
-  status = 200,
-  extraHeaders: HeadersInit = {},
-): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...JSON_HEADERS, ...Object.fromEntries(new Headers(extraHeaders)) },
-  });
+function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}): Response {
+  const headers = new Headers(JSON_HEADERS);
+  new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 function allowedOrigins(env: Env): Set<string> {
-  return new Set(
-    env.WEB_ORIGINS.split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
+  return new Set(env.WEB_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean));
 }
 
 function corsHeaders(request: Request, env: Env): Headers {
@@ -64,24 +55,18 @@ function corsHeaders(request: Request, env: Env): Headers {
   const origin = request.headers.get("Origin");
   if (origin && allowedOrigins(env).has(origin)) {
     headers.set("access-control-allow-origin", origin);
-    headers.set("access-control-allow-credentials", "false");
   }
   return headers;
 }
 
 function requestId(request: Request): string {
   const supplied = request.headers.get("x-request-id");
-  return supplied && /^[A-Za-z0-9._-]{8,80}$/.test(supplied)
-    ? supplied
-    : crypto.randomUUID();
+  return supplied && /^[A-Za-z0-9._-]{8,80}$/.test(supplied) ? supplied : crypto.randomUUID();
 }
 
 function bearerToken(request: Request): string {
-  const header = request.headers.get("Authorization");
-  const match = header?.match(/^Bearer ([^\s]+)$/i);
-  if (!match) {
-    throw new ApiError(401, "UNAUTHORIZED", "A valid bearer token is required.");
-  }
+  const match = request.headers.get("Authorization")?.match(/^Bearer ([^\s]+)$/i);
+  if (!match) throw new ApiError(401, "UNAUTHORIZED", "A valid bearer token is required.");
   return match[1];
 }
 
@@ -89,16 +74,20 @@ function supabaseUrl(env: Env, path: string): string {
   return new URL(path, env.SUPABASE_URL).toString();
 }
 
-async function authenticate(request: Request, env: Env): Promise<AuthenticatedUser> {
-  const token = bearerToken(request);
-  const response = await fetch(supabaseUrl(env, "/auth/v1/user"), {
-    method: "GET",
-    headers: {
-      apikey: env.SUPABASE_PUBLISHABLE_KEY,
-      authorization: \`Bearer \${token}\`,
-      accept: "application/json",
-    },
-  });
+async function authenticate(token: string, env: Env): Promise<AuthenticatedUser> {
+  let response: Response;
+  try {
+    response = await fetch(supabaseUrl(env, "/auth/v1/user"), {
+      method: "GET",
+      headers: {
+        apikey: env.SUPABASE_PUBLISHABLE_KEY,
+        authorization: "Bearer " + token,
+        accept: "application/json",
+      },
+    });
+  } catch {
+    throw new ApiError(502, "UPSTREAM_ERROR", "Identity verification is temporarily unavailable.");
+  }
 
   if (response.status === 401 || response.status === 403) {
     throw new ApiError(401, "UNAUTHORIZED", "Your session is invalid or has expired.");
@@ -108,9 +97,7 @@ async function authenticate(request: Request, env: Env): Promise<AuthenticatedUs
   }
 
   const user = (await response.json()) as AuthenticatedUser;
-  if (!user?.id) {
-    throw new ApiError(401, "UNAUTHORIZED", "Your session could not be verified.");
-  }
+  if (!user?.id) throw new ApiError(401, "UNAUTHORIZED", "Your session could not be verified.");
   return user;
 }
 
@@ -122,14 +109,16 @@ async function supabaseUserRequest<T>(
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("apikey", env.SUPABASE_PUBLISHABLE_KEY);
-  headers.set("authorization", \`Bearer \${token}\`);
+  headers.set("authorization", "Bearer " + token);
   headers.set("accept", "application/json");
   if (init.body) headers.set("content-type", "application/json");
 
-  const response = await fetch(supabaseUrl(env, path), {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(supabaseUrl(env, path), { ...init, headers });
+  } catch {
+    throw new ApiError(502, "UPSTREAM_ERROR", "The data service is temporarily unavailable.");
+  }
 
   if (response.status === 401 || response.status === 403) {
     throw new ApiError(403, "FORBIDDEN", "You are not permitted to access this resource.");
@@ -153,9 +142,32 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
     throw new ApiError(413, "VALIDATION_ERROR", "Request body is too large.");
   }
 
+  const reader = request.body?.getReader();
+  if (!reader) throw new ApiError(400, "VALIDATION_ERROR", "Request body is required.");
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const part = await reader.read();
+    if (part.done) break;
+    totalBytes += part.value.byteLength;
+    if (totalBytes > 16_384) {
+      await reader.cancel();
+      throw new ApiError(413, "VALIDATION_ERROR", "Request body is too large.");
+    }
+    chunks.push(part.value);
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new ApiError(400, "VALIDATION_ERROR", "Request body must be valid JSON.");
   }
@@ -189,11 +201,7 @@ function validateCreateOrganization(body: Record<string, unknown>) {
   return { name, business_type: businessType, timezone, currency };
 }
 
-async function handleRoute(
-  request: Request,
-  env: Env,
-  url: URL,
-): Promise<Response> {
+async function handleRoute(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/health") {
     return json({ status: "ok", service: "vellara-api", version: "v1" });
   }
@@ -203,7 +211,7 @@ async function handleRoute(
   }
 
   const token = bearerToken(request);
-  const user = await authenticate(request, env);
+  const user = await authenticate(token, env);
 
   if (request.method === "GET" && url.pathname === "/v1/me") {
     const profiles = await supabaseUserRequest<Array<{
@@ -214,7 +222,9 @@ async function handleRoute(
     }>>(
       env,
       token,
-      \`/rest/v1/profiles?select=id,display_name,phone_e164,avatar_path&id=eq.\${encodeURIComponent(user.id)}&limit=1\`,
+      "/rest/v1/profiles?select=id,display_name,phone_e164,avatar_path&id=eq." +
+        encodeURIComponent(user.id) +
+        "&limit=1",
     );
 
     return json({
@@ -242,7 +252,9 @@ async function handleRoute(
     }>>(
       env,
       token,
-      "/rest/v1/organization_memberships?select=organization_id,role,status,organizations(id,name,status,business_profiles(display_name,business_type,timezone,currency))&status=eq.active&order=created_at.asc",
+      "/rest/v1/organization_memberships?select=organization_id,role,status,organizations(id,name,status,business_profiles(display_name,business_type,timezone,currency))" +
+        "&user_id=eq." + encodeURIComponent(user.id) +
+        "&status=eq.active&order=created_at.asc",
     );
 
     return json({ organizations: memberships });
@@ -279,8 +291,15 @@ export default {
 
     if (origin && !allowedOrigins(env).has(origin)) {
       return json(
-        { error: { code: "FORBIDDEN", message: "Origin is not allowed.", request_id: id } },
+        {
+          error: {
+            code: "FORBIDDEN",
+            message: "Origin is not allowed.",
+            request_id: id,
+          },
+        },
         403,
+        { "x-request-id": id },
       );
     }
 
@@ -316,7 +335,7 @@ export default {
           },
         },
         apiError.status,
-        cors,
+        { ...Object.fromEntries(cors), "x-request-id": id },
       );
     }
   },
