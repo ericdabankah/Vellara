@@ -6,7 +6,7 @@ Build VELLARA's backend as a secure Cloudflare Worker API integrated with Supaba
 
 ## Current stack boundary
 
-- Cloudflare Workers for API execution.
+- Cloudflare Workers for API execution. For new Worker projects use the current Cloudflare `cf` CLI workflow (`cf init`), not Wrangler; generate binding types from `cloudflare.config.ts` and do not hand-maintain an Env interface.
 - Supabase Auth for identity.
 - Supabase Postgres for relational state and RLS.
 - Supabase Storage for tenant assets when storage policies are implemented.
