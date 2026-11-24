@@ -1,9 +1,3 @@
-export interface Env {
-  SUPABASE_URL: string;
-  SUPABASE_PUBLISHABLE_KEY: string;
-  WEB_ORIGINS: string;
-}
-
 type AuthenticatedUser = {
   id: string;
   email?: string;
@@ -339,4 +333,4 @@ export default {
       );
     }
   },
-};
+} satisfies ExportedHandler<Env>;
