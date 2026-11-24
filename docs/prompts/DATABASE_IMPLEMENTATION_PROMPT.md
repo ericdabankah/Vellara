@@ -20,7 +20,7 @@ The project is the dedicated VELLARA Supabase project in `eu-west-1`. Never modi
 ## Non-negotiable rules
 
 1. Every tenant-owned row must have an explicit organization relationship and tenant-safe foreign keys.
-2. Enable RLS on every exposed application table. Write policies from the real authorization matrix, not generic `auth.uid()` guesses.
+2. Enable RLS on every exposed application table. Write policies from the real authorization matrix, not generic `auth.uid()` guesses. Supabase no longer automatically exposes newly created public tables through the Data API by default: explicitly configure API schema exposure and table/column grants, and keep RLS enabled. Exposure grants and row policies are separate controls.
 3. Never authorize using user-editable Auth `user_metadata`.
 4. Never expose service-role or secret keys to a browser or customer channel.
 5. Prefer SECURITY INVOKER. Any justified SECURITY DEFINER function must use an empty/fixed search path, schema-qualified objects, explicit caller checks, restricted EXECUTE grants, and a documented threat model.
