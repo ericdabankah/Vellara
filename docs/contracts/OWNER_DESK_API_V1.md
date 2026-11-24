@@ -1,0 +1,74 @@
+# VELLARA Owner Desk API v1
+
+Status: implementation baseline for the initial identity/tenant milestone.
+
+Base path: `/v1`
+
+## Authentication
+
+Every route except `GET /health` requires:
+
+```
+Authorization: Bearer <Supabase access token>
+```
+
+The API verifies the token against Supabase Auth. The verified user ID comes only from the Auth response. Browser-supplied user IDs and organization roles are never trusted.
+
+## Response envelope
+
+Success responses use JSON objects. Errors use:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Your session is invalid or has expired.",
+    "request_id": "server-generated-or-validated-id"
+  }
+}
+```
+
+Stable initial error codes: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_ERROR`, `METHOD_NOT_ALLOWED`, `UPSTREAM_ERROR`, `INTERNAL_ERROR`.
+
+## Routes
+
+### GET /health
+
+Public liveness endpoint. Returns service status only. Must not expose environment variables, database details or secrets.
+
+### GET /v1/me
+
+Returns verified Auth identity and the caller's own profile.
+
+### GET /v1/organizations
+
+Returns active organization memberships visible to the authenticated caller, with organization and business-profile summary. Database RLS is authoritative.
+
+### POST /v1/organizations
+
+Creates an organization, business profile and initial owner membership atomically through `public.create_organization`.
+
+Request:
+
+```json
+{
+  "name": "Example Hotel",
+  "business_type": "hotel",
+  "timezone": "Africa/Accra",
+  "currency": "GHS"
+}
+```
+
+Allowed business types: `hotel`, `real_estate`, `other`.
+
+Response: HTTP 201 with `organization_id`.
+
+The caller cannot submit organization ID, user ID, owner role, membership status or created_by. Those values are established by the database function using the verified auth context.
+
+## Tenant authorization
+
+No route accepts a free-form organization ID for this initial slice. Future tenant-scoped routes must resolve the requested organization through active membership before domain work. RLS must independently enforce row access.
+
+## Compatibility
+
+This contract is deliberately narrow. It does not yet define inventory, reservations, payments, staff PINs, telephone, WhatsApp, mini-website publishing, AI tool calls or QR check-in. Those domains require separate state machines and contracts before implementation.
