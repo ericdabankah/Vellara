@@ -27,17 +27,19 @@ An account and workspace may exist before payment, but paid capabilities must re
 - Plan limits must be enforced by the backend, not just by disabled buttons in the Owner Desk.
 - No plan prices or billing provider have been approved in this document.
 
-## Working plan matrix
+## Confirmed plan lineup and working entitlement matrix
 
-| Entitlement | Starter | Higher tier (working name: Growth) |
-|---|---:|---:|
-| Connected phone-number slots | 1 | 2 or 3, decision pending |
-| AI receptionist instances | 1 | 2 or 3, decision pending |
-| Simultaneous AI-handled calls | 1 initially proposed | 2 or 3, decision pending |
-| Voice + WhatsApp on the same E.164 number | Counts as one number slot | Counts as one number slot |
-| Price and billing interval | Pending | Pending |
+The four plan names are approved: **Starter, Growth, Premium, and Enterprise**. Exact limits and prices remain unapproved and must not be invented in the product UI or database seed data.
 
-The higher-tier name is a working label only. Do not expose it as final marketing copy until approved.
+| Entitlement | Starter | Growth | Premium | Enterprise |
+|---|---:|---:|---:|---:|
+| Connected phone-number slots | 1 | Pending | Pending | Custom agreement |
+| AI receptionist instances | 1 | Pending | Pending | Custom agreement |
+| Simultaneous AI-handled calls | 1 proposed baseline, provider validation required | Pending | Pending | Custom agreement |
+| Voice + WhatsApp on the same E.164 number | Counts as one number slot | Counts as one number slot | Counts as one number slot | Counts as one number slot |
+| Price and billing interval | Pending | Pending | Pending | Custom quote / agreement |
+
+Growth and Premium should provide progressively higher capacity than the tier before them. Enterprise should support negotiated limits and onboarding rather than an arbitrary hard-coded ceiling. Do not expose pending values as final marketing copy.
 
 ## Important distinction: numbers, channels, instances, and concurrency
 
@@ -80,12 +82,12 @@ Unique constraints should prevent the same normalized number being counted twice
 
 ## Decisions still required before live billing
 
-1. Confirm the higher-tier name: Growth or another name.
-2. Confirm whether that tier allows two or three connected numbers.
-3. Confirm whether receptionist-instance count always matches the number-slot count.
-4. Confirm simultaneous-call limits per tier.
-5. Set monthly and annual prices, currency, tax treatment, and trial policy.
-6. Select the billing provider and confirm Ghana payment methods, recurring-payment support, webhook reliability, and refund/cancellation handling.
+1. Set connected-number limits for Growth and Premium.
+2. Set AI receptionist-instance limits for Growth and Premium, and decide whether those limits always match number slots.
+3. Confirm simultaneous-call limits for every tier against real telephony and AI-provider capacity.
+4. Set monthly and annual prices, currency, tax treatment, and trial policy.
+5. Select the billing provider and confirm Ghana payment methods, recurring-payment support, webhook reliability, and refund/cancellation handling.
+6. Define Enterprise quotation, contracting, onboarding, and negotiated entitlement workflow.
 7. Define grace periods and what happens to active calls when a subscription becomes inactive.
 
 Until these are approved, implement the account/workspace flow and subscription-aware UI structure, but do not activate checkout or invent plan prices.
