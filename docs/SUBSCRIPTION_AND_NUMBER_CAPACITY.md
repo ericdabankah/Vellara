@@ -52,7 +52,7 @@ These are separate concepts and should not be collapsed into one counter:
 
 For example, a workspace with two receptionist instances can have Receptionist 1 handling one call while Receptionist 2 handles another call. The backend must reserve and release concurrency capacity atomically to prevent over-allocation during simultaneous incoming calls. Each receptionist instance is reserved for one live call at a time; separate instances provide parallel call handling, while the plan-wide concurrency ceiling limits the workspace total.
 
-A single receptionist instance should not be assumed to handle unlimited simultaneous calls. Provider-specific session limits, telephony limits, and the subscription's concurrency allowance must all be respected.
+Each receptionist instance is reserved for one live call at a time. A workspace with two active instances can therefore handle two calls in parallel, provided its subscription concurrency limit is at least two. The database renews active call leases and expires abandoned leases before allocating capacity. Provider-specific session limits and telephony limits must also be respected.
 
 ## Implemented production data model
 
