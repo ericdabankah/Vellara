@@ -269,3 +269,5 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .auth-loading{display:flex;align-items:center;gap:12px;color:#526158;font-size:12px}
 .auth-loading span{width:17px;height:17px;border:2px solid #d8d1c2;border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
 @media(max-width:520px){.auth-card{padding:28px 22px}.auth-card h1{font-size:24px}}
+
+.auth-forgot{text-align:right;margin-top:-5px}.auth-forgot button{border:0;background:none;color:#9a752e;font-size:10px;font-weight:700;cursor:pointer}.auth-forgot button:disabled{opacity:.5;cursor:wait}
