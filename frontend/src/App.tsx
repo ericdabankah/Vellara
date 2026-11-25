@@ -50,6 +50,7 @@ export default function App() {
 
 function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () => Promise<void> }) {
   const [active, setActive] = useState<Section>("Overview");
+  const [initialRouteChosen, setInitialRouteChosen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [data, setData] = useState<DeskData>(blank);
   const [loading, setLoading] = useState(true);
@@ -98,6 +99,12 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   }, [workspace.id]);
 
   useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    if (!loading && !initialRouteChosen) {
+      setInitialRouteChosen(true);
+      if (!data.subscription) setActive("Plans");
+    }
+  }, [loading, initialRouteChosen, data.subscription]);
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase.channel("owner-desk-" + workspace.id)
@@ -150,8 +157,8 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   async function updateStatus(table: "rooms" | "reservations", id: string, status: string) {
     if (!supabase) return;
     setError(""); setNotice("");
-    const result = await supabase.from(table).update({ status }).eq("organization_id", workspace.id).eq("id", id);
-    if (result.error) setError(result.error.message); else { setNotice("Changes saved."); await reload(true); }
+    const result = await supabase.from(table).update({ status }).eq("organization_id", workspace.id).eq("id", id).select("id").maybeSingle();
+    if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice("Changes saved."); await reload(true); }
   }
 
   async function saveSettings(event: FormEvent<HTMLFormElement>) {
@@ -165,8 +172,8 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       contact_email: String(form.get("contact_email") ?? "").trim() || null, contact_phone_e164: String(form.get("contact_phone_e164") ?? "").trim() || null,
       website_url: String(form.get("website_url") ?? "").trim() || null, address_line_1: String(form.get("address_line_1") ?? "").trim() || null,
       city: String(form.get("city") ?? "").trim() || null, region: String(form.get("region") ?? "").trim() || null,
-    }).eq("organization_id", workspace.id);
-    if (result.error) setError(result.error.message); else { setNotice("Business profile updated."); await reload(true); }
+    }).eq("organization_id", workspace.id).select("organization_id").maybeSingle();
+    if (result.error) setError(result.error.message); else if (!result.data) setError("Your workspace role cannot update business settings."); else { setNotice("Business profile updated."); await reload(true); }
     setSaving(false);
   }
 
