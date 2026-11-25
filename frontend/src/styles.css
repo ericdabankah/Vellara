@@ -271,3 +271,5 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 @media(max-width:520px){.auth-card{padding:28px 22px}.auth-card h1{font-size:24px}}
 
 .auth-forgot{text-align:right;margin-top:-5px}.auth-forgot button{border:0;background:none;color:#9a752e;font-size:10px;font-weight:700;cursor:pointer}.auth-forgot button:disabled{opacity:.5;cursor:wait}
+
+.route-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.route-tags small{padding:4px 6px;border-radius:5px;background:#f5f4ef;color:#7e897f;font-size:8px;line-height:1.3}
