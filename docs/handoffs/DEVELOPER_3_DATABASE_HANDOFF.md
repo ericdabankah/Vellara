@@ -171,7 +171,88 @@ Record exact commands and results in the PR. Do not claim a test passed unless i
 - Keep the frontend developer supplied with stable API-facing data shapes, not raw unreviewed schema changes.
 - Do not merge your own PR unless the project owner explicitly authorizes it.
 
-## 9. Copy-and-paste instruction for your coding model
+
+## 10. Voice-agent and VELLARA AI engine data requirements (new agreed direction)
+
+### Product and ownership decision
+
+VELLARA will integrate one existing call-focused voice-agent platform, initially evaluating **Retell AI** and comparing **Vapi** before any production commitment. OpenAI API is the initial reasoning/intelligence provider. The voice platform handles telephone conversation infrastructure; VELLARA owns business rules, tenant context, tool authorization and authoritative business records.
+
+The database must support this architecture without coupling core business data to a single vendor. Do not create a schema that assumes Retell is the permanent provider or stores vendor-specific JSON as the only source of truth.
+
+ChatGPT Plus does not provide OpenAI API credits. OpenAI API usage is separately billed. The OpenAI API key and voice-provider secrets must be stored in backend secret management, not in Postgres tables, frontend code or GitHub.
+
+### Domain data areas to plan
+
+During the schema design, assess the need for the following logical entities. Do not create all of them immediately; first agree scope and API contracts with Developer 2 and the project owner.
+
+| Logical entity | Purpose and key requirements |
+|---|---|
+| `voice_provider_connections` | Tenant's provider association, provider name, external account/agent identifiers, status and non-secret configuration metadata. Never store raw API secrets here. |
+| `telephone_numbers` / `channel_endpoints` | E.164 number, direction/capability, provider reference, assigned organization, routing status and verification metadata. Unique active routing must prevent one inbound number from ambiguously resolving to multiple tenants. |
+| `voice_agents` | VELLARA agent identity/configuration version, provider external agent ID, enabled state, language/voice preferences and deployment status. Provider IDs are references, not tenant authorization. |
+| `agent_policy_versions` | Versioned approved instructions, business policy references, allowed tool set, escalation rules and effective dates. Preserve history for audit/reproducibility. |
+| `knowledge_sources` | Tenant-owned approved source metadata, source type, status, version, freshness and access scope. Any vector/search implementation must preserve tenant filtering and source provenance. |
+| `calls` | VELLARA call ID, organization, provider, provider call ID, number/route, direction, lifecycle state, start/end times, disposition, transfer status and correlation IDs. Unique provider/event identifiers should prevent duplicate ingestion. |
+| `call_events` | Append-only normalized event log with event type, provider event ID, occurred/received timestamps and safe metadata. Idempotent ingestion; avoid raw secrets and unnecessary personal content. |
+| `call_tool_executions` / `ai_action_audit` | Tool name/version, call/conversation reference, requested actor, validated tenant, sanitized arguments or argument hash, outcome, backend entity reference, error code and timestamps. Must be auditable and idempotent. |
+| `call_usage_records` | Provider/model, duration, usage units, estimated/actual cost, currency, source event and reconciliation status. Treat provider usage reports as billing inputs, not business payment records. |
+| `conversation_messages` (if approved) | Channel-neutral messages with role/source, timestamp, correlation and retention metadata. Store transcripts only under an explicit retention/access policy. |
+| `human_handoffs` | Transfer request, reason, target/queue, staff assignment, provider transfer reference, state and completion outcome. |
+
+These are logical names for design discussion, not mandated final table names. Reuse an existing conversation/customer model if one is introduced rather than duplicating call transcripts and identities across tables.
+
+### Required database invariants
+
+- Every tenant-owned voice configuration, call, event, knowledge source and action audit record must have an enforceable organization ownership path.
+- Provider account IDs, agent IDs and call IDs are not proof of tenant authorization.
+- Resolve inbound telephone number to one active VELLARA route using a unique, verified server-side mapping.
+- Enforce uniqueness for provider + external call ID and provider + external event ID where applicable.
+- Event ingestion must tolerate retries and out-of-order events; retain both provider occurrence time and VELLARA receipt time.
+- Prevent cross-tenant foreign-key relationships. A call belonging to organization A must not reference organization B's customer, reservation, knowledge source or action target.
+- Use append-only audit/event records where practical; corrections should be represented as new events or explicit state transitions rather than silent history rewrites.
+- Define retention, deletion, legal hold and access controls for recordings, transcripts and extracted personal data before storing them.
+- Do not store voice-provider API keys, OpenAI API keys, webhook signing secrets or telephony credentials in ordinary database rows. If a future encrypted credential vault is proposed, it requires a separate security review and strict service-only access.
+- Never store full payment card data, passwords or plaintext staff PINs in call records or transcripts.
+- Do not let an AI-generated organization ID determine row ownership. Backend resolves and supplies tenant context after verifying the provider event and call route.
+- RLS must cover every exposed tenant-owned table; test two organizations with calls, agent configurations, knowledge and action logs.
+- Add indexes for organization + created_at, provider + external IDs, call state, event processing state and expiry/retention jobs based on actual access patterns.
+
+### Relationship to authoritative business records
+
+Calls and AI action logs are evidence of conversations and requests; they are not substitutes for business-domain records.
+
+- A spoken reservation request is not itself a reservation.
+- A call tool request is not proof that a tool succeeded.
+- A tool execution must reference the authoritative reservation, viewing, payment attempt or other business record created by the backend.
+- Payment provider usage/cost is separate from customer payment transactions.
+- A call ending successfully does not mean the requested business operation succeeded.
+- Reservation, inventory, payment, refund and check-in state remain governed by their own transactional tables and approved database functions.
+
+### Required coordination with Developer 2
+
+Before adding voice-related migrations, agree:
+1. normalized call lifecycle/event names and whether provider events are stored raw, normalized or both (store only the minimum raw payload needed for debugging, with redaction/retention);
+2. trusted telephone-number-to-organization routing contract;
+3. provider/model adapter metadata and which configuration belongs in Postgres versus backend secrets;
+4. call, conversation, customer and tool-execution relationships;
+5. idempotency keys and uniqueness constraints for provider webhook ingestion;
+6. retention, deletion and recording/transcript access policy;
+7. query patterns and RPC/transaction needs for call state and action auditing.
+
+Do not block the first authenticated Owner Desk milestone on these later voice-domain tables. Deliver the voice schema as a separately reviewed migration set after the proof-of-concept contracts are agreed.
+
+## 11. Updated priority order
+
+1. Audit and security-test the existing four-table VELLARA foundation.
+2. Complete the first Owner Desk schema/API contract.
+3. Agree the channel-neutral conversation and voice call contracts with Developer 2.
+4. Design provider-neutral voice configuration and call/event persistence.
+5. Implement the minimum voice-domain schema required by the Retell proof of concept.
+6. Add further AI knowledge, action audit, usage metering and retention structures incrementally.
+7. Add reservation/payment domain schema only with reviewed state transitions, concurrency rules and tests.
+
+## 12. Copy-and-paste instruction for your coding model
 
 > You are the VELLARA database engineer working in `ericdabankah/Vellara`. Your assignment is Supabase/Postgres schema, migrations, RLS, grants, database functions, storage policies and database tests only. Read this handover completely. Inspect the current repository, open pull requests, all migration files and the live Supabase schema before changing anything.
 >
