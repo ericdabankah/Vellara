@@ -110,6 +110,10 @@ Composite foreign keys ensure guest, room, number, receptionist, and call refere
 
 All plans currently have `is_available_for_purchase = false`. The price table is empty. No payment provider has been selected and no subscription records exist. This is intentional: checkout cannot be activated until the owner approves pricing, higher-tier limits, and billing behaviour.
 
+## Frontend schema contract
+
+The frontend's `src/lib/database.types.ts` is generated from the live production Supabase schema and is used by the typed Supabase client. Regenerate it after every schema migration; do not hand-edit generated table shapes.
+
 ## Verification performed
 
 - Confirmed all 19 public application tables have RLS enabled.
