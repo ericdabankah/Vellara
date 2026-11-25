@@ -2,7 +2,7 @@
 
 ## Status
 
-Product architecture decision in progress. This document records the owner's stated direction and separates confirmed rules from limits, prices, and billing-provider decisions that still need approval. It does not create live subscription records or change the production database.
+Product architecture decision in progress. This document records the approved product direction and separates configured entitlements from limits, prices, and billing-provider decisions that still need approval. The four plan catalogue rows and entitlement rows now exist in the production Supabase database; no organization subscriptions, prices, or customer records have been seeded.
 
 ## Owner journey
 
@@ -35,7 +35,7 @@ The four plan names are approved: **Starter, Growth, Premium, and Enterprise**. 
 |---|---:|---:|---:|---:|
 | Connected phone-number slots | 1 | Pending | Pending | Custom agreement |
 | AI receptionist instances | 1 | Pending | Pending | Custom agreement |
-| Simultaneous AI-handled calls | 1 proposed baseline, provider validation required | Pending | Pending | Custom agreement |
+| Simultaneous AI-handled calls | 1 configured baseline | Pending | Pending | Custom agreement |
 | Voice + WhatsApp on the same E.164 number | Counts as one number slot | Counts as one number slot | Counts as one number slot | Counts as one number slot |
 | Price and billing interval | Pending | Pending | Pending | Custom quote / agreement |
 
@@ -54,25 +54,29 @@ For example, a workspace with two receptionist instances can have Receptionist 1
 
 A single receptionist instance should not be assumed to handle unlimited simultaneous calls. Provider-specific session limits, telephony limits, and the subscription's concurrency allowance must all be respected.
 
-## Proposed data model for backend/database alignment
+## Implemented production data model
 
-Names are conceptual and are not live tables yet:
+The following tables are live in Supabase:
 
-- `plans`: stable plan code, display name, active status, billing interval, currency, and public price.
-- `plan_entitlements`: number-slot limit, receptionist-instance limit, simultaneous-call limit, and feature flags, versioned by plan.
-- `organization_subscriptions`: organization, plan version, billing provider reference, status, period start/end, trial dates, and cancellation state.
-- `subscription_events`: verified provider event IDs and processing status for idempotent webhook handling.
-- `organization_phone_numbers`: organization, normalized E.164 number, verification state, and status.
-- `phone_number_channels`: voice/WhatsApp channel configuration associated with a phone-number record.
-- `receptionist_instances`: organization, configuration/version, status, and assigned number/routing target.
-- `call_capacity_reservations` or an equivalent atomic backend mechanism: tracks active sessions against the organization's concurrency entitlement.
+- `subscription_plans` and `subscription_plan_entitlements`: public plan catalogue and configured/pending capacity.
+- `subscription_prices`: monthly/yearly price records. It is intentionally empty until prices and billing provider are approved.
+- `organization_subscriptions`: tenant subscription state plus a per-subscription entitlement snapshot.
+- `subscription_provider_events`: server-only idempotent billing webhook inbox.
+- `organization_phone_numbers` and `phone_number_channels`: normalized number identity plus voice/WhatsApp channels.
+- `receptionist_instances` and `receptionist_number_routes`: independent AI receptionist configurations and channel routing.
+- `calls` and `call_capacity_reservations`: durable call history and expiring concurrency leases.
+- `guests`, `rooms`, `reservations`, and `activity_events`: tenant-scoped Owner Desk operating data.
+
+The existing `profiles`, `organizations`, `organization_memberships`, and `business_profiles` tenant foundation remains in place.
 
 Unique constraints should prevent the same normalized number being counted twice for the same organization. Cross-organization ownership/number reuse rules require explicit product and provider decisions.
 
-## Enforcement and security boundaries
+## Database enforcement and security boundaries
 
 - The backend resolves the authenticated user and organization membership. It does not trust a browser-supplied organization ID as authorization.
-- The backend reads the current subscription and plan entitlements before allowing number connection, receptionist creation, or call admission.
+- The backend reads the current subscription and immutable entitlement snapshot before allowing number connection, receptionist creation, or call admission.
+- Server-only database functions are available to the service role: `register_verified_phone_number`, `create_receptionist_instance`, `reserve_call_capacity`, and `release_call_capacity`. These functions use transaction-scoped advisory locks for tenant capacity checks and are not executable by browser roles.
+- Room reservation overlap is rejected by a database trigger that locks the room for the transaction, validates room capacity, and prevents overlapping pending/confirmed/checked-in stays.
 - Capacity reservation must be atomic under concurrent requests.
 - Billing-provider webhook signatures must be verified server-side. Event IDs must be idempotent.
 - Browser clients may read their own subscription summary under RLS, but must not write plan prices, entitlement limits, paid status, provider references, or usage counters.
@@ -90,4 +94,4 @@ Unique constraints should prevent the same normalized number being counted twice
 6. Define Enterprise quotation, contracting, onboarding, and negotiated entitlement workflow.
 7. Define grace periods and what happens to active calls when a subscription becomes inactive.
 
-Until these are approved, implement the account/workspace flow and subscription-aware UI structure, but do not activate checkout or invent plan prices.
+Until these are approved, keep the subscription catalogue visible but checkout disabled. The Owner Desk displays pending limits honestly and does not invent plan prices or activate subscriptions from client-side state.
