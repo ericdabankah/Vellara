@@ -178,7 +178,126 @@ Do not mark a gate complete until tests are run and results are recorded. Includ
 - Keep API contracts and examples in the repository so the frontend developer can implement against a stable source of truth.
 - Do not merge your own PR unless the project owner explicitly authorizes it.
 
-## 7. Copy-and-paste instruction for your coding model
+
+## 8. Voice-agent and VELLARA AI engine architecture (new agreed direction)
+
+### Product decision
+
+VELLARA will integrate **one existing, call-focused voice-agent platform** rather than assembling separate speech-to-text, language-model and text-to-speech services into a home-built telephony stack.
+
+- **Initial platform to evaluate:** Retell AI.
+- **Alternative for a controlled comparison:** Vapi.
+- **Core intelligence and reasoning:** OpenAI API, called by VELLARA's engine or through the selected voice platform's supported custom-LLM/tool integration.
+- **Business authority and orchestration:** VELLARA-owned backend services.
+- **Business context and durable records:** Supabase/Postgres.
+- **Telephone platform:** selected voice-agent provider plus a Ghana-compatible number/carrier arrangement confirmed during the proof of concept.
+
+Retell is the initial evaluation candidate, not an irreversible vendor commitment. Verify current pricing, Ghanaian number provisioning/import, inbound/outbound availability, latency, concurrency, data handling, webhook reliability and transfer behavior before production selection. Do not purchase numbers or enable paid traffic without the project owner's approval.
+
+### Critical distinction: voice platform vs VELLARA engine
+
+The voice platform provides the telephone conversation runtime: call connection, audio processing, turn-taking, interruption handling, voice output and call transfer capabilities.
+
+VELLARA must own the reusable business engine:
+- tenant/business identification and isolation;
+- business profile, approved knowledge and operating policies;
+- customer and conversation context;
+- tool catalogue and authorization;
+- availability, inventory, reservation, viewing, payment and staff workflows;
+- escalation and human handoff rules;
+- audit trail, action outcomes, usage metering and operational analytics.
+
+Do not implement VELLARA as a thin prompt pasted into a vendor dashboard. Provider-specific prompts and call configuration are deployment artifacts; the canonical business rules, tools, policies and tenant context must live in VELLARA-controlled code/data.
+
+### OpenAI API billing and credentials
+
+A ChatGPT Plus subscription does **not** include OpenAI API usage credits or API billing. Treat ChatGPT Plus as a development/research subscription only. Production and automated backend calls require a separately configured OpenAI API account, API key and billing arrangement.
+
+- Store the OpenAI API key only as a backend secret (for example, Cloudflare secret binding if Workers remain the selected runtime).
+- Never put it in frontend code, browser storage, GitHub, Supabase rows readable by clients or voice-agent public configuration.
+- Never ask a developer to paste a real key into a source file or commit it.
+- Use separate development/staging/production credentials and usage limits where possible.
+- Record provider/model, request correlation ID, token/usage metadata and latency without logging secrets or unnecessary customer content.
+
+### Required engine boundaries
+
+Implement a provider-neutral internal contract, for example:
+- `VoiceProviderAdapter`: provision/configure an agent, associate a telephone route, receive and verify call events, request transfer/end-call where supported, and normalize provider call state.
+- `ModelProviderAdapter`: send approved context and tool definitions to OpenAI initially, with a clean boundary for a future model provider change.
+- `BusinessToolRegistry`: exposes narrowly scoped operations such as lookup business information, check availability, create a temporary hold, create a reservation request, schedule a viewing, initiate a payment, request human transfer and retrieve permitted customer context.
+- `TenantContextResolver`: resolves the tenant from a trusted server-side mapping (such as the assigned inbound number/provider route), then verifies the tenant and call configuration. Never trust a tenant or organization ID supplied only in model output, call metadata from an unverified source, or a browser.
+- `CallOrchestrator`: coordinates provider events, conversation context, model decisions, tool authorization, action results and escalation.
+
+These are logical boundaries, not a demand to create unnecessary microservices. Keep the first implementation modular and testable inside the agreed backend runtime.
+
+### Tool execution and safety contract
+
+The AI/voice platform may propose a tool call. It must not execute privileged business operations directly against Postgres or receive a Supabase service-role credential.
+
+For every requested action:
+1. Authenticate the provider webhook or server-to-server request and validate its signature/timestamp/replay protection.
+2. Resolve the call and tenant using trusted server-side records.
+3. Load the applicable business policy and caller permissions/context.
+4. Validate the tool arguments and re-check authorization, price, availability and current state in VELLARA.
+5. Execute through the backend service and approved database transaction/RPC.
+6. Return the authoritative result to the voice platform.
+7. Persist an auditable action outcome and correlation IDs.
+
+The model must never:
+- invent availability, prices, booking references or payment success;
+- directly allocate inventory or confirm a reservation;
+- bypass cancellation/refund/approval policies;
+- change business pricing or operating policy;
+- access another tenant's data;
+- mark a payment successful based on spoken claims, a redirect or an unverified event.
+
+A reservation is confirmed only after VELLARA's authoritative reservation/payment workflow succeeds. Payment verification remains server-to-server/provider-webhook based.
+
+### Call lifecycle, events and handoff
+
+Normalize provider-specific events into a VELLARA event vocabulary. At minimum account for: call initiated/ringing, answered, agent started, user/agent speech or transcript update (only where needed), tool requested, tool completed/failed, transfer requested/connected/failed, call ended, missed/failed, and provider usage/cost update.
+
+Persist stable provider call ID, VELLARA call ID, organization ID, channel/number reference, timestamps, final disposition, transfer outcome and correlation IDs. Do not assume webhook delivery is exactly once or ordered. Make event processing idempotent and tolerate retries/out-of-order delivery.
+
+Human takeover must stop the AI from continuing conflicting actions. Transfers, staff assignment and call termination must be reflected in authoritative backend call state. Frontend live-call UI consumes normalized VELLARA events, not provider-specific payloads.
+
+### Privacy, retention and tenant isolation
+
+- Treat recordings, transcripts, phone numbers and extracted customer details as sensitive personal data.
+- Make recording/transcription behavior configurable by business policy and applicable law; do not enable recording by default without an explicit product/legal decision.
+- Define retention/deletion rules and access permissions before storing recordings or full transcripts.
+- Store only the minimum call metadata needed for operations and billing when full content is not required.
+- Provider credentials and API secrets belong in backend secret storage, never ordinary tenant-readable tables.
+- Tenant-scoped call records, conversations, knowledge and action logs require organization ownership and tested RLS.
+- Do not use one tenant's call data or knowledge to answer another tenant's caller.
+
+### First proof-of-concept scope
+
+Before production implementation, build a controlled test with synthetic hotel data:
+1. A test inbound call or provider simulator reaches one Retell agent.
+2. The agent identifies the correct VELLARA test organization from trusted routing configuration.
+3. It answers questions using that organization's approved hotel knowledge.
+4. It calls a VELLARA backend tool to check availability (read-only first).
+5. It reports only the backend result.
+6. It can request a human transfer.
+7. VELLARA records call state, tool outcome, errors and estimated provider/model usage.
+8. Tests prove a call for tenant A cannot retrieve tenant B's information.
+
+Compare Retell and Vapi on the same scripted scenarios before selecting a paid production provider. Include Ghana number/carrier feasibility and the complete per-minute cost, not just the platform's headline fee.
+
+## 9. Updated build order
+
+1. Inspect repository, open PRs, runtime and existing Cloudflare resources.
+2. Complete the authenticated Owner Desk API and tenant-isolation tests.
+3. Agree database contracts with Developer 3.
+4. Define provider-neutral voice/model interfaces and call/event contracts.
+5. Build the Retell proof of concept with synthetic data and read-only tools.
+6. Add transactional business tools only after their database invariants, authorization and tests are ready.
+7. Add production number provisioning, human handoff, usage metering, retention controls and operational monitoring only after vendor and Ghana telephony validation.
+
+Do not let the voice integration delay or destabilize the first Owner Desk milestone.
+
+## 10. Copy-and-paste instruction for your coding model
 
 > You are the VELLARA backend engineer working in the existing GitHub repository `ericdabankah/Vellara`. Your assignment is the backend only. Read this handover completely, inspect the current repository, branches, open pull requests, Supabase migrations and live VELLARA project before making changes. The VELLARA Supabase project ref is `iztktfglrvdpnwtvefdw`; do not touch any other Supabase project. Cloudflare is already connected; inspect existing account resources before creating or deploying anything.
 >
