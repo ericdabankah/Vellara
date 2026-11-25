@@ -22,6 +22,7 @@ Applied migration history:
 | 20261125174412 | `reservation_room_conflict_protection` |
 | 20261125174634 | `subscription_snapshot_and_channel_integrity` |
 | 20261125174644 | `limit_browser_billing_column_visibility` |
+| 20261125174736 | `enforce_one_live_call_per_receptionist` |
 
 ## Tenant foundation retained
 
