@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Bell, BedDouble, CalendarDays, ChevronDown, Headphones, LayoutDashboard, Menu, Phone, Settings, Users, X } from "lucide-react";
+import { Activity, Bell, BedDouble, CalendarDays, ChevronDown, Headphones, Menu, Phone, Settings, Users, X } from "lucide-react";
 
 const sections = ["Overview", "Calls", "Reservations", "Guests", "Rooms", "Settings"] as const;
 type Section = typeof sections[number];
