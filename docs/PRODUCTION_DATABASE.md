@@ -20,6 +20,8 @@ Applied migration history:
 | 20261125174120 | `enforce_capacity_and_fk_integrity` |
 | 20261125174141 | `database_security_and_fk_index_hardening` |
 | 20261125174412 | `reservation_room_conflict_protection` |
+| 20261125174634 | `subscription_snapshot_and_channel_integrity` |
+| 20261125174644 | `limit_browser_billing_column_visibility` |
 
 ## Tenant foundation retained
 
@@ -69,6 +71,8 @@ Voice and WhatsApp on the same E.164 number are channel records attached to one 
 - Calls, phone records, channels, receptionist definitions, routes, subscriptions, and activity are read-only to browser users.
 - Billing webhook payloads and call-capacity reservations have no browser table grants and explicit deny policies.
 - Server-only RPCs are granted to `service_role` only and use `SECURITY INVOKER`, not `SECURITY DEFINER`.
+- Activated subscription entitlement snapshots are immutable. A plan change requires a new subscription version rather than mutating the historical entitlement record.
+- Browser billing reads are column-restricted: provider customer/subscription references, provider price references, and internal billing metadata are not selectable by browser roles.
 - The frontend uses a Supabase publishable key. A service-role or secret key must never be exposed through Vite environment variables.
 
 ## Capacity enforcement functions
@@ -107,7 +111,7 @@ All plans currently have `is_available_for_purchase = false`. The price table is
 
 ## Verification performed
 
-- Confirmed all 18 public application tables have RLS enabled.
+- Confirmed all 19 public application tables have RLS enabled.
 - Confirmed plan catalogue contains exactly the four approved plan names.
 - Confirmed security advisor returns no lints.
 - Confirmed health advisor returns no lints.
