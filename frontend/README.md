@@ -33,7 +33,7 @@ The incoming-call stage is designed to become a real, event-driven control surfa
 - The frontend must render normalized, backend-confirmed call events and enable call actions only when the backend confirms they are valid.
 - AI activity must be concise operational summaries, never hidden model reasoning.
 - Dashboard figures must come from persisted, organization-scoped records or approved aggregate endpoints. Unknown values remain unavailable, not fabricated zeroes.
-- The current disconnected state is intentional until a real voice service and approved data contracts are connected.
+- The current disconnected state is intentional until a real voice service and approved data contracts are connected. The normalized call lifecycle reducer is implemented in `src/voice/call-state.ts`, but it is not wired to an event stream yet.
 
 See [the voice and dashboard integration contract](../docs/VOICE_AND_DASHBOARD_INTEGRATION_CONTRACT.md) for the required event model, action boundaries, and acceptance criteria.
 
