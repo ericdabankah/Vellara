@@ -50,9 +50,7 @@ These are separate concepts and should not be collapsed into one counter:
 - **AI receptionist instance:** a separately configured receptionist runtime that can be assigned to a connected number or routing configuration.
 - **Concurrent call capacity:** the number of calls the subscription permits VELLARA to process at the same time.
 
-For example, a workspace with two receptionist instances can have Receptionist 1 handling one call while Receptionist 2 handles another call. The backend must reserve and release concurrency capacity atomically to prevent over-allocation during simultaneous incoming calls. Each receptionist instance is reserved for one live call at a time; separate instances provide parallel call handling, while the plan-wide concurrency ceiling limits the workspace total.
-
-Each receptionist instance is reserved for one live call at a time. A workspace with two active instances can therefore handle two calls in parallel, provided its subscription concurrency limit is at least two. The database renews active call leases and expires abandoned leases before allocating capacity. Provider-specific session limits and telephony limits must also be respected.
+For example, a workspace with two receptionist instances can have Receptionist 1 handling one call while Receptionist 2 handles another call. The backend must reserve and release concurrency capacity atomically to prevent over-allocation during simultaneous incoming calls. Each receptionist instance is reserved for one live call at a time; separate instances provide parallel call handling, while the plan-wide concurrency ceiling limits the workspace total. A workspace with two active instances can therefore handle two calls in parallel, provided its subscription concurrency limit is at least two. The database renews active call leases and expires abandoned leases before allocating capacity. Provider-specific session limits and telephony limits must also be respected.
 
 ## Implemented production data model
 
