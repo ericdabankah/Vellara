@@ -119,6 +119,7 @@ The frontend's `src/lib/database.types.ts` is generated from the live production
 - Confirmed all 19 public application tables have RLS enabled.
 - Confirmed plan catalogue contains exactly the four approved plan names.
 - Confirmed security advisor returns no lints.
+- Verified browser roles cannot read call-capacity leases, billing webhook events, billing customer references, or provider price references; only `service_role` can execute the capacity reservation function.
 - Confirmed health advisor returns no lints.
 - Performance advisor returns no unindexed foreign-key findings; unused-index notices are expected before application traffic.
 - Ran transaction-scoped SQL checks for number-slot limit, receptionist-instance limit, simultaneous-call limit, lease release, and overlapping room reservations. All checks passed and the transaction was rolled back. No test organization, user, guest, call, or reservation rows were left behind.
