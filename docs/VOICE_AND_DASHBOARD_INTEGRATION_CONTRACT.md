@@ -82,7 +82,7 @@ type CallRecord = {
 };
 ```
 
-The call stage must derive its display from the latest confirmed call state. A ringing event may enable supported answer/decline actions. An ended, missed, failed, or completed call must not leave stale controls enabled.
+The call stage must derive its display from the latest confirmed call state. A ringing event may enable supported answer/decline actions. An ended, missed, failed, or completed call must not leave stale controls enabled. The frontend lifecycle reducer lives in `frontend/src/voice/call-state.ts`; it rejects events for another organization, deduplicates event IDs, ignores older events, and selects the most recently active call. It is deliberately not connected to a live channel until the backend event transport and authorization contract are approved.
 
 ## AI receptionist activity
 
