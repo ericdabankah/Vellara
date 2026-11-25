@@ -1,4 +1,5 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Building2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
