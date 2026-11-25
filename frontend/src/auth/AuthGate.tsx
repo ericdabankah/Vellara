@@ -47,6 +47,8 @@ export default function AuthGate({ children }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("hotel");
   const [notice, setNotice] = useState("");
@@ -67,9 +69,11 @@ export default function AuthGate({ children }: Props) {
       setAuthLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "SIGNED_OUT") setRecoveryMode(false);
       setSession(nextSession);
-      setWorkspace(null);
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") setWorkspace(null);
       setErrorMessage("");
     });
 
@@ -155,6 +159,10 @@ export default function AuthGate({ children }: Props) {
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) return;
+    if (mode === "signup" && password !== confirmPassword) {
+      setErrorMessage("Your passwords do not match.");
+      return;
+    }
     setSubmitting(true);
     setNotice("");
     setErrorMessage("");
@@ -178,6 +186,43 @@ export default function AuthGate({ children }: Props) {
     } else {
       setNotice(mode === "signup" ? "Account created. Let's set up your property." : "Signed in successfully.");
       if (result.data.session) setSession(result.data.session);
+    }
+    setSubmitting(false);
+  }
+
+  async function requestPasswordReset() {
+    if (!supabase) return;
+    if (!email.trim()) {
+      setErrorMessage("Enter your email address first.");
+      return;
+    }
+    setSubmitting(true);
+    setErrorMessage("");
+    setNotice("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    });
+    if (error) setErrorMessage(error.message);
+    else setNotice("If an account exists for that address, a password reset link has been sent.");
+    setSubmitting(false);
+  }
+
+  async function updateRecoveredPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    if (password.length < 8 || password !== confirmPassword) {
+      setErrorMessage(password.length < 8 ? "Use at least 8 characters." : "Your passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    setErrorMessage("");
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) setErrorMessage(error.message);
+    else {
+      setRecoveryMode(false);
+      setPassword("");
+      setConfirmPassword("");
+      setNotice("Your password has been updated. You can continue to your workspace.");
     }
     setSubmitting(false);
   }
@@ -227,6 +272,26 @@ export default function AuthGate({ children }: Props) {
     return <div className="auth-screen"><div className="auth-loading"><span />Preparing your secure workspace…</div></div>;
   }
 
+  if (session && recoveryMode) {
+    return (
+      <div className="auth-screen">
+        <section className="auth-card">
+          <div className="auth-brand"><b>V</b><span>VELLARA<small>OWNER DESK</small></span></div>
+          <div className="auth-eyebrow">ACCOUNT SECURITY</div>
+          <h1>Choose a new password.</h1>
+          <p>Set a new password for your VELLARA owner account.</p>
+          <form onSubmit={updateRecoveredPassword} className="auth-form">
+            <label><span>New password</span><div><LockKeyhole/><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="At least 8 characters" /></div></label>
+            <label><span>Confirm new password</span><div><LockKeyhole/><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="Repeat your password" /></div></label>
+            {errorMessage && <div className="auth-error" role="alert">{errorMessage}</div>}
+            {notice && <div className="auth-notice" role="status">{notice}</div>}
+            <button className="auth-submit" disabled={submitting}>{submitting ? "Updating…" : "Update password"}</button>
+          </form>
+        </section>
+      </div>
+    );
+  }
+
   if (!session) {
     return (
       <div className="auth-screen">
@@ -237,12 +302,14 @@ export default function AuthGate({ children }: Props) {
           <p>{mode === "signin" ? "Sign in to manage your property and guest experience." : "Start with your account. Your property workspace comes next."}</p>
           <form onSubmit={handleAuth} className="auth-form">
             {mode === "signup" && <label><span>Your name</span><div><UserRound/><input value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required placeholder="Full name" /></div></label>}
+            {mode === "signup" && <label><span>Confirm password</span><div><LockKeyhole/><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required placeholder="Repeat your password" /></div></label>}
             <label><span>Email address</span><div><Mail/><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" /></div></label>
             <label><span>Password</span><div><LockKeyhole/><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required placeholder="At least 8 characters" /></div></label>
             {errorMessage && <div className="auth-error" role="alert">{errorMessage}</div>}
             {notice && <div className="auth-notice" role="status">{notice}</div>}
             <button className="auth-submit" disabled={submitting}>{submitting ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}</button>
           </form>
+          {mode === "signin" && <div className="auth-forgot"><button type="button" onClick={() => void requestPasswordReset()} disabled={submitting}>Forgot password?</button></div>}
           <div className="auth-switch">{mode === "signin" ? "New to VELLARA?" : "Already have an account?"} <button onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setNotice(""); setErrorMessage(""); }}>{mode === "signin" ? "Create an account" : "Sign in"}</button></div>
           <small className="auth-footnote">Secure access powered by Supabase.</small>
         </section>
