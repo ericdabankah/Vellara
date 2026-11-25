@@ -163,7 +163,11 @@ export default function AuthGate({ children }: Props) {
       ? await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { full_name: fullName.trim() } },
+          options: {
+            data: { full_name: fullName.trim() },
+            // Return the owner to this deployed Owner Desk after email confirmation.
+            emailRedirectTo: window.location.origin,
+          },
         })
       : await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
