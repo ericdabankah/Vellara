@@ -20,7 +20,7 @@ An account and workspace may exist before payment, but paid capabilities must re
 ## Product rules confirmed so far
 
 - VELLARA is subscription-based.
-- The Starter plan includes one connected phone number and one AI receptionist instance.
+- The Starter plan includes one connected phone number, one AI receptionist instance, and one simultaneous call. These Starter entitlements are configured in the database.
 - A telephone number used for voice calls and WhatsApp should count as one connected number when both channels use the same E.164 number.
 - Higher plans should allow multiple connected numbers and multiple AI receptionist instances.
 - Multiple receptionist instances must be able to work independently and handle separate calls at the same time, within the plan's concurrency allowance.
