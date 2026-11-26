@@ -111,20 +111,36 @@ The following product domains are not represented by dedicated tables in the cur
 - Use immutable or append-only records for critical payment, receipt, access, and audit events where appropriate.
 - Do not trust client-supplied organization IDs or user-editable metadata as authorization.
 
-## 6. Migration reproducibility finding
+## 6. Migration recovery and reproducibility
 
-The Supabase project records 11 applied migrations in its migration history. The reviewed GitHub feature-branch tree contains the application code and documentation but no canonical Supabase migrations directory. The applied production SQL therefore needs to be reconciled into repository-controlled migration files before expanding the production schema.
+The Supabase project records 11 applied migrations. Their original SQL was recovered directly from the `statements` arrays in `supabase_migrations.schema_migrations` and restored to `supabase/migrations/` on the feature branch, retaining each original timestamp and migration name.
 
-Do not blindly replay production SQL or create duplicate migrations. First reconstruct the exact ordered migration set, compare it with the live schema, validate it against a clean local database, and document any unavoidable baseline/adoption procedure. Only then should new domain migrations be designed and applied.
+All 11 repository files were fetched back from GitHub and compared with their corresponding Supabase migration-history statements. Every file matched exactly after normalizing only the final newline. No migration was replayed and no production schema change was made during recovery.
+
+The recovered files establish the canonical ordered migration history in Git. A clean local database reset/replay has not yet been run, so clean-environment reproducibility remains to be verified before production schema expansion. Do not run `supabase db push` against production until the local replay, migration status, and live-schema comparison are complete.
+
+### Migration verification status
+
+- Original migration records found: 11 of 11.
+- SQL statements recovered: 11 of 11.
+- Repository file comparisons: 11 exact matches.
+- Production migrations replayed during recovery: none.
+- Clean local reset/replay: pending.
+- Production schema drift check after local replay: pending.
+
+### Additional access-control observation
+
+All 19 public application tables have RLS enabled. The read-only privilege audit also found broad table-level grants on several tables for `anon` and/or `authenticated`, even where RLS policies currently restrict effective row access. RLS is not a substitute for least-privilege SQL grants. Review and tighten those grants in a separately tested security migration before launch; do not make blanket revocations without checking the frontend's required column-level access and service-role workflows.
 
 ## 7. Recommended next sequence
 
-1. Retrieve/reconstruct the exact SQL for all 11 applied migrations and establish a canonical repository migration history.
-2. Compare that migration set against the live production schema and verify it can reproduce the current schema from a clean local database.
-3. Finalize the domain model for customer identity, conversations/messages, properties/units, reservations, payments, receipts/QR verification, website handoff, automations, and staff permissions.
-4. Agree backend ownership and API/event contracts before changing database structures that the Worker will consume.
-5. Implement the missing schema in small migrations with RLS, constraints, indexes, and explicit tests.
-6. Regenerate frontend database types from the verified schema.
+1. Run the recovered migration set against a clean local Supabase database and resolve any replay errors without changing production.
+2. Compare the resulting local schema, functions, triggers, policies, grants, and constraints against the live project; document any drift.
+3. Complete the least-privilege grants review and test browser access under anon/authenticated roles.
+4. Finalize the domain model for customer identity, conversations/messages, properties/units, reservations, payments, receipts/QR verification, website handoff, automations, and staff permissions.
+5. Agree backend ownership and API/event contracts before changing database structures that the Worker will consume.
+6. Implement missing schema in small migrations with RLS, constraints, indexes, and explicit tests.
+7. Regenerate frontend database types from the verified schema.
 
 ## 8. Scope exclusions
 
