@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Archive, BedDouble, Check, ChevronLeft, CircleHelp, Edit3, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -197,7 +197,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   </div>;
 }
 
-function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
+function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
   return <label className={wide ? "field field-wide" : "field"}><span>{label}</span>{children}</label>;
 }
 
