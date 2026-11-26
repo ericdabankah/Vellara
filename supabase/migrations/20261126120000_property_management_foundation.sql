@@ -403,6 +403,7 @@ create policy property_staff_assignments_owner_insert
         and membership.user_id = property_staff_assignments.user_id
         and membership.status = 'active'
     )
+    and granted_by = (select auth.uid())
   );
 create policy property_staff_assignments_owner_update
   on public.property_staff_assignments for update to authenticated
