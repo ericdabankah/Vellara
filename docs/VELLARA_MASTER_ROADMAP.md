@@ -140,7 +140,7 @@ Frontend:
 Database:
 - Website configuration, branding, publishing, and domain mapping.
 - Public listing projection.
-- Availability holds and expiry.
+- Availability holds and expiry, with business-configurable duration and concurrency-safe inventory allocation.
 - Booking/checkout sessions.
 - Scoped, expiring handoff tokens.
 
@@ -243,6 +243,7 @@ Phase 1 domain design has begun in parallel, without claiming database implement
 - Room transfers are now an approved domain rule: reject moves while active or future reservations exist; authorize and audit every accepted transfer; retain prior property association history and never rewrite historical reservations.
 - Room types are approved as property-specific and fully user-configurable. No fixed names or seeded catalogue; referenced types must retain history and be deactivated rather than destructively deleted.
 - Each room type supports a property-entered name, optional description, default capacity, configurable bed configuration, property-managed amenities, and an optional default nightly rate. Rooms may inherit these defaults or use explicit authorized overrides; rates use the property's effective currency.
+- Reservation holds are approved: enquiries never block inventory; pending bookings may block a unit only through an explicit, expiring hold. The business configures the hold duration. Expiry releases inventory, hold creation/availability checks must be concurrency-safe, and payment state remains separate from reservation state.
 - Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
 - The Owner Desk now stays on Overview for a new workspace without a subscription; Plans remains available through navigation instead of being forced as the landing page.
 - The live reception hero now distinguishes a ringing incoming call from an in-progress call and includes restrained pulse/transform motion with reduced-motion support. Call controls remain disabled until the verified call-control integration exists.
