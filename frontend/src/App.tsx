@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 import AuthGate from "./auth/AuthGate";
 import { supabase } from "./lib/supabase";
 
 type Workspace = { id: string; name: string; businessType: string; role: string };
-type Section = "Overview" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
+type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
 type CallRow = { id: string; status: string; direction: string; caller_e164: string | null; guest_name: string | null; started_at: string; duration_seconds: number | null; outcome: string | null; summary: string };
 type GuestRow = { id: string; full_name: string; phone_e164: string | null; email: string | null; notes: string; source: string; created_at: string };
 type RoomRow = { id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
+type PropertyRow = { id: string; vertical: "hospitality" | "real_estate"; name: string; slug: string; description: string; status: string; city: string | null; region: string | null; timezone_override: string | null; currency_override: string | null; created_at: string };
 type ReservationRow = { id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
 type PhoneRow = { id: string; phone_e164: string; label: string; status: string; verification_status: string; phone_number_channels: { channel: string; status: string }[] };
 type ReceptionistRow = { id: string; display_name: string; description: string; status: string; language_code: string; timezone: string };
@@ -23,6 +25,7 @@ type ModalKind = "guest" | "room" | "reservation" | null;
 
 const nav: { name: Section; icon: ReactNode; group: string }[] = [
   { name: "Overview", icon: <LayoutDashboard />, group: "workspace" },
+  { name: "Properties", icon: <BedDouble />, group: "workspace" },
   { name: "Calls", icon: <Phone />, group: "workspace" },
   { name: "Reservations", icon: <CalendarDays />, group: "workspace" },
   { name: "Guests", icon: <Users />, group: "workspace" },
@@ -59,12 +62,17 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<ModalKind>(null);
+  const [properties, setProperties] = useState<PropertyRow[]>([]);
+  const [propertySchemaReady, setPropertySchemaReady] = useState(false);
+  const [propertySchemaError, setPropertySchemaError] = useState("");
+  const [propertyModal, setPropertyModal] = useState(false);
 
   const reload = useCallback(async (quiet = false) => {
     if (!supabase) return;
     quiet ? setRefreshing(true) : setLoading(true);
     setError("");
     const today = startOfAccraDay();
+    const propertyDb = supabase as unknown as SupabaseClient<any>;
     const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
       supabase.from("calls").select("id,status,direction,caller_e164,guest_name,started_at,duration_seconds,outcome,summary").eq("organization_id", workspace.id).order("started_at", { ascending: false }).limit(100),
       supabase.from("reservations").select("id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
@@ -85,6 +93,18 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id),
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).eq("status", "occupied"),
     ]);
+    const [propertyRows, moduleRows] = await Promise.all([
+      propertyDb.from("properties").select("id,vertical,name,slug,description,status,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
+      propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
+    ]);
+    if (propertyRows.error || moduleRows.error) {
+      setPropertySchemaReady(false);
+      setPropertySchemaError(propertyRows.error?.message || moduleRows.error?.message || "Property schema is unavailable.");
+    } else {
+      setPropertySchemaReady(true);
+      setPropertySchemaError("");
+      setProperties((propertyRows.data ?? []) as PropertyRow[]);
+    }
     const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error].find(Boolean);
     if (failed) setError(failed.message);
     else setData({
@@ -107,6 +127,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: "organization_id=eq." + workspace.id }, () => void reload(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "guests", filter: "organization_id=eq." + workspace.id }, () => void reload(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: "organization_id=eq." + workspace.id }, () => void reload(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "properties", filter: "organization_id=eq." + workspace.id }, () => void reload(true))
       .on("postgres_changes", { event: "*", schema: "public", table: "activity_events", filter: "organization_id=eq." + workspace.id }, () => void reload(true))
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
@@ -156,6 +177,33 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice("Changes saved."); await reload(true); }
   }
 
+  async function createProperty(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    const form = new FormData(event.currentTarget);
+    const vertical = String(form.get("vertical") ?? "hospitality") as PropertyRow["vertical"];
+    const name = String(form.get("name") ?? "").trim();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "property";
+    const propertyDb = supabase as unknown as SupabaseClient<any>;
+    setSaving(true); setError(""); setNotice("");
+    const moduleResult = await propertyDb.from("organization_modules").upsert({ organization_id: workspace.id, module_key: vertical, is_enabled: true, disabled_at: null }, { onConflict: "organization_id,module_key" });
+    if (moduleResult.error) {
+      setError(moduleResult.error.message); setSaving(false); return;
+    }
+    const result = await propertyDb.from("properties").insert({
+      organization_id: workspace.id, vertical, name, slug,
+      description: String(form.get("description") ?? "").trim(),
+      city: String(form.get("city") ?? "").trim() || null,
+      region: String(form.get("region") ?? "").trim() || null,
+      timezone_override: String(form.get("timezone_override") ?? "").trim() || null,
+      currency_override: String(form.get("currency_override") ?? "").trim() || null,
+    }).select("id").maybeSingle();
+    if (result.error) setError(result.error.message);
+    else if (!result.data) setError("The property was not created. Check your workspace permissions.");
+    else { setNotice("Property created. Its currency and timezone inherit your workspace defaults unless overridden."); setPropertyModal(false); await reload(true); }
+    setSaving(false);
+  }
+
   async function saveSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) return;
@@ -184,11 +232,12 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     <main className="main-area">
       <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu /></button><span>Owner Desk</span><ChevronRight size={14} /><b>{active}</b></div><div className="topbar-right"><span className="secure-label"><i /> Secure workspace</span><button className="icon-button" onClick={() => void reload(true)} title="Refresh data" aria-label="Refresh data"><RefreshCw className={refreshing ? "spin" : ""} size={17} /></button><span className="icon-button" aria-hidden="true"><Bell size={18} /></span><div className="topbar-avatar">{initials(workspace.name)}</div></div></header>
       <div className="page-content">
-        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
+        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" || active === "Properties" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Properties" && <button className="primary-button" disabled={!propertySchemaReady} onClick={() => setPropertyModal(true)}><Plus size={16} />Add property</button>}{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
         {error && <div className="inline-alert alert-error" role="alert"><CircleHelp size={16} />{error}<button onClick={() => setError("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {notice && <div className="inline-alert alert-success" role="status"><Check size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {loading ? <div className="loading-panel"><span className="loader" />Loading your workspace data…</div> : <>
           {active === "Overview" && <Overview data={data} activeCall={activeCall} occupancy={occupancy} onNavigate={setActive} />}
+          {active === "Properties" && <PropertiesPage properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} />}
           {active === "Calls" && <CallsPage calls={data.calls} />}
           {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} />}
@@ -202,15 +251,16 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       </div>
     </main>
     {modal && <RecordModal kind={modal} guests={data.guests} rooms={data.rooms} saving={saving} onClose={() => setModal(null)} onSubmit={createRecord} />}
+    {propertyModal && <PropertyModal saving={saving} onClose={() => setPropertyModal(false)} onSubmit={createProperty} />}
   </div>;
 }
 
 function pageTitle(section: Section) {
-  const titles: Record<Section, string> = { Overview: "Your desk, at a glance.", Calls: "Call activity", Reservations: "Reservations", Guests: "Guest directory", Rooms: "Room management", Numbers: "Connected numbers", "AI Receptionists": "Your AI receptionists", Plans: "Plans & subscription", Settings: "Business settings" };
+  const titles: Record<Section, string> = { Overview: "Your desk, at a glance.", Properties: "Your properties", Calls: "Call activity", Reservations: "Reservations", Guests: "Guest directory", Rooms: "Room management", Numbers: "Connected numbers", "AI Receptionists": "Your AI receptionists", Plans: "Plans & subscription", Settings: "Business settings" };
   return titles[section];
 }
 function pageDescription(section: Section, name: string) {
-  const descriptions: Record<Section, string> = { Overview: "A live view of " + name + " and its guest experience.", Calls: "Review conversations handled by VELLARA.", Reservations: "Track enquiries, upcoming stays, and reservation status.", Guests: "Keep guest contact details and notes in one secure place.", Rooms: "Manage room inventory and availability status.", Numbers: "Manage the phone identities and channels connected to your workspace.", "AI Receptionists": "Configure independent receptionist instances and routing.", Plans: "Understand your subscription, included capacity, and billing status.", Settings: "Keep your business details accurate across the Owner Desk." };
+  const descriptions: Record<Section, string> = { Overview: "A live view of " + name + " and its guest experience.", Properties: "Manage each location, its operating vertical, and inherited business settings.", Calls: "Review conversations handled by VELLARA.", Reservations: "Track enquiries, upcoming stays, and reservation status.", Guests: "Keep guest contact details and notes in one secure place.", Rooms: "Manage room inventory and availability status.", Numbers: "Manage the phone identities and channels connected to your workspace.", "AI Receptionists": "Configure independent receptionist instances and routing.", Plans: "Understand your subscription, included capacity, and billing status.", Settings: "Keep your business details accurate across the Owner Desk." };
   return descriptions[section];
 }
 function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData; activeCall?: CallRow; occupancy: number; onNavigate: (section: Section) => void }) {
@@ -234,6 +284,50 @@ function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData;
     <section className="quick-grid"><button className="quick-card" onClick={() => onNavigate("Calls")}><span className="quick-icon"><Phone /></span><span><b>Review calls</b><small>{data.calls.length} recent call records</small></span><ChevronRight /></button><button className="quick-card" onClick={() => onNavigate("Reservations")}><span className="quick-icon"><CalendarDays /></span><span><b>Manage reservations</b><small>{data.reservations.length} reservation records</small></span><ChevronRight /></button><button className="quick-card" onClick={() => onNavigate("AI Receptionists")}><span className="quick-icon"><Sparkles /></span><span><b>AI receptionists</b><small>{data.receptionists.length} configured instances</small></span><ChevronRight /></button></section>
   </>;
 }
+
+function PropertiesPage({ properties, profile, schemaReady, schemaError }: { properties: PropertyRow[]; profile: BusinessProfile | null; schemaReady: boolean; schemaError: string }) {
+  const hospitality = properties.filter((property) => property.vertical === "hospitality");
+  const realEstate = properties.filter((property) => property.vertical === "real_estate");
+  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is not active yet</h2><p>The Owner Desk is ready for this module, but the connected database does not expose the new property tables yet. The migration is being reviewed and has not been applied to the live database.</p><small>{schemaError}</small></section>;
+  return <div className="property-management">
+    <section className="property-summary-grid">
+      <article className="metric-card"><div className="metric-top"><span>All properties</span><i><BedDouble /></i></div><strong>{properties.length}</strong><small>Across enabled business verticals</small></article>
+      <article className="metric-card"><div className="metric-top"><span>Hospitality</span><i><BedDouble /></i></div><strong>{hospitality.length}</strong><small>Hotels, serviced apartments and stays</small></article>
+      <article className="metric-card"><div className="metric-top"><span>Real estate</span><i><LayoutDashboard /></i></div><strong>{realEstate.length}</strong><small>Sales and rental property portfolios</small></article>
+    </section>
+    <section className="surface data-surface">
+      <div className="table-toolbar"><div><h2>Property portfolio</h2><p>Each property has its own operational space and access boundary.</p></div><span className="table-meta">{properties.length} properties</span></div>
+      {properties.length ? <div className="property-grid">{properties.map((property) => {
+        const currency = property.currency_override || profile?.currency || "GHS";
+        const timezone = property.timezone_override || profile?.timezone || "Africa/Accra";
+        return <article className="property-card" key={property.id}>
+          <div className="property-card-top"><span className="property-vertical">{property.vertical === "hospitality" ? "HOSPITALITY" : "REAL ESTATE"}</span><span className={pill(property.status)}>{property.status}</span></div>
+          <h3>{property.name}</h3><p>{property.description || (property.vertical === "hospitality" ? "Hospitality property" : "Real-estate portfolio property")}</p>
+          <div className="property-address">{[property.city, property.region].filter(Boolean).join(", ") || "Address not added"}</div>
+          <div className="property-settings"><span><small>Currency</small><b>{currency}{property.currency_override ? " · custom" : " · inherited"}</b></span><span><small>Timezone</small><b>{timezone}{property.timezone_override ? " · custom" : " · inherited"}</b></span></div>
+        </article>;
+      })}</div> : <EmptyState title="Your property portfolio is empty" description="Create your first property. Rooms and room types will be managed inside their hospitality property, not at organization level." />}
+    </section>
+    <p className="property-footnote">Organization defaults: {profile?.currency || "GHS"} · {profile?.timezone || "Africa/Accra"}. Each property can override either setting independently.</p>
+  </div>;
+}
+function PropertyModal({ saving, onClose, onSubmit }: { saving: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="modal-card property-modal" onSubmit={onSubmit}>
+    <div className="modal-heading"><div><span className="eyebrow">PROPERTY PORTFOLIO</span><h2>Add a property</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Close dialog"><X /></button></div>
+    <div className="form-grid">
+      <Field label="Property name"><input name="name" required minLength={2} maxLength={120} autoFocus placeholder="e.g. The Cedar Residence" /></Field>
+      <Field label="Business vertical"><select name="vertical" defaultValue="hospitality"><option value="hospitality">Hospitality</option><option value="real_estate">Real estate</option></select></Field>
+      <Field label="City"><input name="city" placeholder="e.g. Accra" /></Field>
+      <Field label="Region"><input name="region" placeholder="e.g. Greater Accra" /></Field>
+      <Field label="Currency override"><input name="currency_override" maxLength={3} pattern="[A-Z]{3}" placeholder="Blank inherits workspace default" /></Field>
+      <Field label="Timezone override"><input name="timezone_override" placeholder="Leave blank to inherit, e.g. Africa/Accra" /></Field>
+      <Field label="Description" wide><textarea name="description" rows={3} placeholder="A short description of this property." /></Field>
+    </div>
+    <p className="property-modal-note">Currency and timezone are inherited from the organization unless you set an override. You can override either one without changing the other.</p>
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving ? "Creating…" : "Create property"}</button></div>
+  </form></div>;
+}
+
 function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) { return <label className="table-search"><Search size={16} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>; }
 function CallsPage({ calls }: { calls: CallRow[] }) {
   const [query, setQuery] = useState("");
