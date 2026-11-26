@@ -41,6 +41,8 @@ type Props = {
 };
 type BedKey = "king" | "queen" | "double" | "single" | "bunk";
 
+function pill(status: string) { return "status-pill status-" + status.toLowerCase().replace(/[^a-z]+/g, "-"); }
+
 const bedLabels: { key: BedKey; label: string }[] = [
   { key: "king", label: "King" },
   { key: "queen", label: "Queen" },
