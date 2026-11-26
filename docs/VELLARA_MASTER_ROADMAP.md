@@ -7,7 +7,7 @@
 
 ## Product delivery model
 
-VELLARA is a multi-tenant AI-powered business operating platform serving multiple business verticals. Its product scope includes both accommodation/hospitality operations (hotels, serviced apartments, short-stay apartments, and B&Bs) and real-estate sales/rentals (including houses and other properties listed for sale). These are first-class VELLARA business domains, not unrelated products. Delivery is staged: accommodation operations are the initial implementation focus, while the real-estate domain receives its own listing, enquiry/lead, viewing, offer, negotiation, and transaction workflows in a later planned delivery slice. Do not model a property-for-sale as a hotel room or force sales transactions into accommodation reservations. Shared foundations such as organizations, staff permissions, customer identity, communications, AI knowledge/actions, media, payments, receipts, and branded websites should be reusable where appropriate, with domain-specific inventory and lifecycle models.
+VELLARA is a multi-tenant AI-powered business operating platform serving multiple business verticals. Its product scope includes both accommodation/hospitality operations (hotels, serviced apartments, short-stay apartments, and B&Bs) and real-estate sales/rentals (including houses and other properties listed for sale). These are first-class VELLARA business domains, not unrelated products. Delivery is staged: accommodation operations are the initial implementation focus, while the real-estate domain receives its own listing, enquiry/lead, viewing, offer, negotiation, and transaction workflows in a later planned delivery slice. Do not model a property-for-sale as a hotel room or force sales transactions into accommodation reservations. **Approved organization model:** one organization/business account may enable and operate both hospitality and real-estate verticals. These appear as distinct modules/workspaces within the same organization, with separate domain dashboards, inventory, pipelines, and lifecycle workflows. Shared customers and contacts may be linked across modules through a canonical identity layer with tenant-safe access controls; users should not need duplicate accounts merely because the organization operates in both verticals. The organization controls which verticals are enabled, and staff permissions can be scoped by both vertical and property/listing portfolio. Shared foundations such as organizations, staff permissions, customer identity, communications, AI knowledge/actions, media, payments, receipts, and branded websites should be reusable where appropriate, with domain-specific inventory and lifecycle models.
 
 The project is delivered through two coordinated primary workstreams:
 
@@ -55,11 +55,14 @@ Frontend:
 
 Database:
 - Multiple properties per organization.
-- Property, room type, room/unit, capacity, and amenities foundations.
+- Organization-level enabled business verticals, with distinct hospitality and real-estate module boundaries and a shared account shell.
+- Property, room type, room/unit, capacity, and amenities foundations for hospitality.
+- Foundation for cross-module customer identity and vertical-scoped staff permissions.
 - Guests and customer records with safe identity matching foundations.
 - Reservation lifecycle and status history.
 - Availability and overlap protection.
-- Staff roles/permissions foundations and audit events.
+- Staff roles/permissions foundations and audit events
+- Vertical/module access grants and property/listing-portfolio assignment scopes.
 
 **Exit gate:** An authorized operator can manage properties, rooms, guests, and reservations using authoritative Supabase data, with tenant isolation and reservation integrity verified.
 
@@ -244,6 +247,7 @@ Phase 1 domain design has begun in parallel, without claiming database implement
 - Each room type supports a property-entered name, optional description, default capacity, configurable bed configuration, property-managed amenities, and an optional default nightly rate. Rooms may inherit these defaults or use explicit authorized overrides; rates use the property's effective currency.
 - Reservation holds are approved: enquiries never block inventory; pending bookings may block a unit only through an explicit, expiring hold. The business configures the hold duration. Expiry releases inventory, hold creation/availability checks must be concurrency-safe, and payment state remains separate from reservation state.
 - Property-level staff access is approved for Phase 1: owners can access all properties; managers and operations staff are limited to assigned properties unless explicitly granted broader access; verification permissions are narrowly scoped. Enforcement must be server-side and auditable.
+- One organization may operate both hospitality and real-estate modules under the same account. The modules have separate dashboards and domain workflows, while shared customer identity and platform services are reused. Organization-level vertical enablement and vertical/property/listing-scoped staff permissions are required.
 - Real-estate sales/rentals, including houses for sale, are confirmed as a first-class VELLARA product vertical. It is included in the product architecture and roadmap, with dedicated listing, viewing, lead, offer, and transaction models planned separately from accommodation rooms and reservations.
 - Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
 - The Owner Desk now stays on Overview for a new workspace without a subscription; Plans remains available through navigation instead of being forced as the landing page.
