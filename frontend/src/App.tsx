@@ -51,7 +51,6 @@ export default function App() {
 
 function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () => Promise<void> }) {
   const [active, setActive] = useState<Section>("Overview");
-  const [initialRouteChosen, setInitialRouteChosen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [data, setData] = useState<DeskData>(blank);
   const [loading, setLoading] = useState(true);
@@ -101,12 +100,6 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   }, [workspace.id]);
 
   useEffect(() => { void reload(); }, [reload]);
-  useEffect(() => {
-    if (!loading && !initialRouteChosen) {
-      setInitialRouteChosen(true);
-      if (!data.subscription) setActive("Plans");
-    }
-  }, [loading, initialRouteChosen, data.subscription]);
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase.channel("owner-desk-" + workspace.id)
@@ -230,8 +223,8 @@ function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData;
   return <>
     <section className="metric-grid">{metrics.map((item) => <article className="metric-card" key={item.label}><div className="metric-top"><span>{item.label}</span><i>{item.icon}</i></div><strong>{item.value}</strong><small>{item.hint}</small></article>)}</section>
     <div className="overview-grid">
-      <section className="surface call-panel"><div className="surface-heading"><div><span className="eyebrow">LIVE RECEPTION</span><h2>{activeCall ? "Call in progress" : "Incoming call"}</h2></div><span className={activeCall ? "connection-state connected" : "connection-state"}><i />{activeCall ? activeCall.status.replace("_", " ") : "VOICE CONNECTION PENDING"}</span></div>
-        <div className={activeCall ? "call-stage call-stage-active" : "call-stage"}><div className="call-orbit" /><div className="call-stage-content"><div className="headset-icon"><Headphones /></div><span className="call-kicker">{activeCall ? "LIVE CALL SESSION" : "RECEPTION IS READY"}</span><h3>{activeCall ? activeCall.guest_name || activeCall.caller_e164 || "Guest calling" : "Ready for your next guest"}</h3><p>{activeCall ? "Started " + timeText(activeCall.started_at) + ". " + (activeCall.summary || "The backend is reporting this live session.") : "When the voice provider is connected, live calls and AI activity will appear here. Call controls remain inactive until a verified call-control service is available."}</p><div className="call-actions"><button className="call-answer" disabled title="Call control is not connected yet">Answer</button><button className="call-decline" disabled title="Call control is not connected yet">Decline</button></div></div></div>
+      <section className="surface call-panel"><div className="surface-heading"><div><span className="eyebrow">LIVE RECEPTION</span><h2>{activeCall?.status === "ringing" ? "Incoming call" : activeCall ? "Call in progress" : "Incoming call"}</h2></div><span className={activeCall ? "connection-state connected" : "connection-state"}><i />{activeCall ? activeCall.status.replace("_", " ") : "VOICE CONNECTION PENDING"}</span></div>
+        <div className={activeCall ? activeCall.status === "ringing" ? "call-stage call-stage-active call-stage-ringing" : "call-stage call-stage-active" : "call-stage"}><div className="call-orbit" /><div className="call-stage-content"><div className="headset-icon"><Headphones /></div><span className="call-kicker">{activeCall?.status === "ringing" ? "INCOMING CALL · RINGING" : activeCall ? "LIVE CALL SESSION" : "RECEPTION IS READY"}</span><h3>{activeCall ? activeCall.guest_name || activeCall.caller_e164 || "Guest calling" : "Ready for your next guest"}</h3><p>{activeCall ? "Started " + timeText(activeCall.started_at) + ". " + (activeCall.summary || "The backend is reporting this live session.") : "When the voice provider is connected, live calls and AI activity will appear here. Call controls remain inactive until a verified call-control service is available."}</p><div className="call-actions"><button className="call-answer" disabled title="Call control is not connected yet">Answer</button><button className="call-decline" disabled title="Call control is not connected yet">Decline</button></div></div></div>
         <div className="call-panel-footer"><span><i />AI receptionist</span><b>VELLARA AI</b></div>
       </section>
       <section className="surface activity-panel"><div className="surface-heading"><div><span className="eyebrow">WORKSPACE FEED</span><h2>Recent activity</h2></div><Activity size={18} /></div>
