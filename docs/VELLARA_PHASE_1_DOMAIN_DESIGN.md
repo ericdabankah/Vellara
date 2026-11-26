@@ -59,7 +59,7 @@ Proposed attributes:
 - `amenities` (controlled list or normalized relation after requirements are confirmed)
 - `created_at`, `updated_at`
 
-Room types should not be global across tenants. Initial implementation can scope each type to a property to avoid accidental cross-property assumptions. A later shared-template model can be considered if real operators need it.
+**Approved configuration rule:** room types are property-specific and fully user-configurable. VELLARA must not hardcode, seed, or require a fixed catalogue of room-type names. Authorized property staff create and manage the names and definitions that match their own operation. One property may define any set of categories while another defines a different set. The schema should provide flexible validated fields and tenant/property ownership, not a product-imposed list of names. Authorized staff may rename or edit a type; if a type is already referenced by rooms or reservations, it must be deactivated/archived rather than hard-deleted, and existing records must retain their historical meaning. A future reusable-template feature can be considered separately, but it is not part of the initial model.
 
 ### C. Rooms / bookable units
 
