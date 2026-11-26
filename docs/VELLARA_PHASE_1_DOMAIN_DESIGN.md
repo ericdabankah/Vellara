@@ -140,7 +140,9 @@ The property selector must be explicit when a tenant has more than one property.
 
 ### Add a room/unit
 - Staff selects a property.
-- Enters room identifier, room type, capacity, operational status, and rate.
+- Selects one of that property's configured room types, or creates a new type if permitted. VELLARA supplies no fixed room-type, bed-configuration, or amenity catalogue.
+- Reviews the type's inherited capacity, bed configuration, amenities, and default rate.
+- Enters the room identifier and operational status; any room-specific overrides are explicit and permission-checked.
 - UI validates required fields and numeric values.
 - Save writes to the selected property and organization.
 - Duplicate room identifiers are surfaced clearly.
