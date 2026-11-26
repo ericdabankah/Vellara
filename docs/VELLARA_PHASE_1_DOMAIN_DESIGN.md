@@ -176,7 +176,7 @@ Proposed initial intent:
 - **Operations:** guest, reservation, and room operations within granted scope.
 - **Verification:** receipt/transaction verification when that domain is implemented; no general property or pricing administration by default.
 
-Property-level staff scope is not yet represented in the current schema. Decide whether Phase 1 requires per-property membership before adding staff assignment features. Do not assume organization-wide membership automatically means every staff member should access every property.
+**Approved Phase 1 access rule:** property-level staff scope is required. Organization owners retain access across all properties. Managers and operations staff see and act only within their assigned property scope unless an owner explicitly grants broader access. Verification staff receive only the verification permissions they need, scoped to the relevant organization/property and transaction. Access must be enforced server-side through database policies/authorized backend operations, not merely by hiding UI navigation. Membership and property assignment changes, permission grants, and sensitive actions must be auditable. A user with no property assignment must not gain property access by default. The exact permission matrix and safe owner recovery path must be specified before migration.
 
 ## 8. Migration strategy proposal
 
@@ -199,10 +199,9 @@ Each migration must be additive, preserve existing reservation protections, and 
 - **Resolved:** organization-level default currency and timezone, with nullable per-property overrides. A property inherits either default independently unless it explicitly overrides that setting.
 - **Resolved:** a room may move between properties only when it has no active or future reservations. Transfers must be authorized, audited, and preserve the prior property association in history; historical reservations are never rewritten.
 - **Resolved:** enquiries do not block inventory. Pending bookings may block a unit only through an explicit time-limited hold with an expiry timestamp. The business configures the hold duration; expiry releases inventory, and hold creation/availability checks must be concurrency-safe. Payment state remains separate from reservation state.
-- Does a property need property-level staff access in the first operational release?
 - Are room rates simple nightly prices initially, or do seasonal/date-based rate plans belong in Phase 1?
 
-Remaining decisions must be resolved before writing the migration. Room-type scope and the pending-hold policy are resolved as recorded above.
+Remaining decisions must be resolved before writing the migration. Room-type scope, the pending-hold policy, and property-level staff access are resolved as recorded above.
 
 ## 10. Acceptance checklist
 
@@ -213,6 +212,7 @@ Remaining decisions must be resolved before writing the migration. Room-type sco
 - [ ] Enquiries never block inventory; pending holds have explicit expiry, business-configured duration, concurrency-safe creation, and reliable expiry semantics.
 - [ ] Unassigned enquiries and walk-ins have explicit rules.
 - [ ] Role permissions are enforced server-side.
+- [ ] Property-level staff scope is enforced server-side; owners can manage all properties while other staff are restricted to assigned scope unless explicitly granted broader access.
 - [ ] Property selection and metric scope are clear in the UI.
 - [ ] Room transfers reject active/future reservations, write an audit event, and preserve prior property association history.
 - [ ] Existing production data can be migrated without invented defaults.
