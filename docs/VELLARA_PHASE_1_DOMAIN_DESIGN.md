@@ -109,7 +109,11 @@ Keep `guests` as the accommodation-facing guest profile in Phase 1. Do not prema
 - A child row must not reference a property, room type, room, or guest belonging to another organization.
 - Departure date must be later than arrival date.
 - Confirmed/checked-in reservations must not overlap for the same bookable unit, according to the existing conflict-protection rules.
-- Pending and inquiry holds must have explicitly defined expiry/availability semantics before they can block inventory.
+- An enquiry alone never blocks inventory. A pending booking may block a specific unit only when the system creates an explicit, time-limited hold after an authoritative availability check.
+- Every inventory-blocking hold has an expiry timestamp. The configured business hold duration determines that timestamp; it must not be an indefinite pending state.
+- Hold creation and availability allocation must be atomic/concurrency-safe. Expired holds cease blocking inventory even if a background cleanup job is delayed; availability checks must treat expiry as authoritative, with cleanup allowed to reconcile stored state.
+- If required payment or confirmation is not completed before expiry, the hold expires and the unit becomes available again. Payment state remains separate from reservation/hold state; a payment attempt or customer claim does not extend or confirm a hold unless an approved business rule explicitly says so.
+- The hold duration is configurable by the business, not a hardcoded global product constant. The exact configuration surface and any property-level override are implementation details to settle before migration.
 - Room operational status (available, occupied, maintenance, out of service) is not a substitute for date-based reservation availability.
 - A room being marked available must not override a conflicting confirmed reservation.
 - A reservation status change must not be treated as payment confirmation.
@@ -194,8 +198,8 @@ Each migration must be additive, preserve existing reservation protections, and 
 
 - **Resolved:** organization-level default currency and timezone, with nullable per-property overrides. A property inherits either default independently unless it explicitly overrides that setting.
 - **Resolved:** a room may move between properties only when it has no active or future reservations. Transfers must be authorized, audited, and preserve the prior property association in history; historical reservations are never rewritten.
+- **Resolved:** enquiries do not block inventory. Pending bookings may block a unit only through an explicit time-limited hold with an expiry timestamp. The business configures the hold duration; expiry releases inventory, and hold creation/availability checks must be concurrency-safe. Payment state remains separate from reservation state.
 - Are room types property-specific or shared across all properties under one organization?
-- Do pending reservations block inventory, and for how long?
 - Does a property need property-level staff access in the first operational release?
 - Are room rates simple nightly prices initially, or do seasonal/date-based rate plans belong in Phase 1?
 
@@ -207,6 +211,7 @@ Remaining decisions must be resolved before writing the migration.
 - [ ] Room inventory remains compatible with existing reservations.
 - [ ] Cross-tenant and cross-property references are rejected.
 - [ ] Availability uses reservation dates and conflict protection, not only room status.
+- [ ] Enquiries never block inventory; pending holds have explicit expiry, business-configured duration, concurrency-safe creation, and reliable expiry semantics.
 - [ ] Unassigned enquiries and walk-ins have explicit rules.
 - [ ] Role permissions are enforced server-side.
 - [ ] Property selection and metric scope are clear in the UI.
