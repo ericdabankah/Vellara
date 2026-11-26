@@ -240,6 +240,7 @@ Phase 0 is in progress:
 Phase 1 domain design has begun in parallel, without claiming database implementation:
 - Accommodation/property model proposal is documented in `docs/VELLARA_PHASE_1_DOMAIN_DESIGN.md`.
 - The proposal preserves existing `rooms`, `guests`, and `reservations` compatibility. Organization-level currency/timezone defaults with independent nullable property overrides are approved; other domain decisions remain open.
+- Room transfers are now an approved domain rule: reject moves while active or future reservations exist; authorize and audit every accepted transfer; retain prior property association history and never rewrite historical reservations.
 - Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
 - The Owner Desk now stays on Overview for a new workspace without a subscription; Plans remains available through navigation instead of being forced as the landing page.
 - The live reception hero now distinguishes a ringing incoming call from an in-progress call and includes restrained pulse/transform motion with reduced-motion support. Call controls remain disabled until the verified call-control integration exists.
