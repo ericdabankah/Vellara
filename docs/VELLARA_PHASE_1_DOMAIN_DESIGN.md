@@ -48,18 +48,27 @@ A property belongs to exactly one organization. Property reads and writes must c
 
 ### B. Room types
 
-Introduce `room_types` as reusable accommodation categories within a property.
+Introduce `room_types` as configurable accommodation categories within a property.
 
 Proposed attributes:
 - `id`, `organization_id`, `property_id`
-- `name`, `code`, `description`
-- `default_capacity`
-- `bed_configuration` (structured but validated)
-- `base_rate_minor`, `currency`
-- `amenities` (controlled list or normalized relation after requirements are confirmed)
-- `created_at`, `updated_at`
+- `name` (entered by the property; no hardcoded catalogue), optional `code`, and optional `description`
+- `default_capacity` (validated positive guest count)
+- `bed_configuration` (structured, validated, and configurable by the property)
+- `amenities` (property-managed selections; no fixed VELLARA-imposed amenity catalogue)
+- `default_nightly_rate_minor` (optional default rate stored in minor currency units)
+- `currency` (resolved from the property's effective currency unless a separately approved pricing rule permits an override)
+- lifecycle status and `created_at`, `updated_at`
 
-**Approved configuration rule:** room types are property-specific and fully user-configurable. VELLARA must not hardcode, seed, or require a fixed catalogue of room-type names. Authorized property staff create and manage the names and definitions that match their own operation. One property may define any set of categories while another defines a different set. The schema should provide flexible validated fields and tenant/property ownership, not a product-imposed list of names. Authorized staff may rename or edit a type; if a type is already referenced by rooms or reservations, it must be deactivated/archived rather than hard-deleted, and existing records must retain their historical meaning. A future reusable-template feature can be considered separately, but it is not part of the initial model.
+**Approved configuration rule:** room types are property-specific and fully user-configurable. VELLARA must not hardcode, seed, or require a fixed catalogue of room-type names, bed configurations, or amenities. Authorized property staff create and manage the names and definitions that match their own operation. One property may define any set of categories while another defines a different set. The schema should provide flexible validated fields and property ownership, not a product-imposed list of names.
+
+Authorized staff may rename or edit a type. If a type is already referenced by rooms or reservations, it must be deactivated/archived rather than hard-deleted, and existing records must retain their historical meaning.
+
+**Approved room-type fields:** each type supports a property-entered name, optional description, default guest capacity, configurable bed configuration, property-managed amenities, and an optional default nightly rate. The default nightly rate is a starting value, not a guaranteed price for every date or reservation. Room-level overrides may be supported for legitimate room-specific differences, with clear precedence and audit history. Rates and currency must be stored and calculated consistently using integer minor units and the property's effective currency; do not silently mix currencies.
+
+For a room assigned to a room type, default capacity, bed configuration, amenities, and rate can be inherited from the type. Where an authorized room-level override exists, the room's effective value takes precedence and the Owner Desk must make that override visible. A room must not silently copy inherited defaults into permanent values unless the user explicitly chooses to customize them.
+
+A future reusable-template feature can be considered separately, but it is not part of the initial model.
 
 ### C. Rooms / bookable units
 
