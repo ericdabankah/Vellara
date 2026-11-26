@@ -214,7 +214,7 @@ Commercial decisions such as prices, trials, billing intervals, and provider sel
 - No schema expansion before domain modelling and access-control review.
 - Never edit an already-applied migration; create a new migration for each subsequent schema change.
 - Never use production as an experimental environment.
-- Use a separate development Supabase project if local Supabase/Docker is unavailable or unsuitable. Confirm organization and any nonzero project cost before creating it.
+- If local Supabase/Docker is unavailable and hosted development compute is declined, continue frontend and design work without a running database. Keep production read-only; database replay, RLS, grants, constraints, and integration checks remain explicitly unverified until an isolated environment is available.
 - Never expose Supabase service-role/secret keys in browser code.
 - Every tenant-owned record must have an explicit, tested tenant access model.
 - RLS and SQL grants are separate controls; review both.
@@ -231,9 +231,15 @@ Phase 0 is in progress:
 - All 11 repository files were compared against their original stored statements and matched exactly, after normalizing the trailing newline.
 - The live project is currently `ACTIVE_HEALTHY`; its migration history lists the same 11 recovered versions.
 - Supabase security and health advisors returned no lints in the 2026-11-26 check.
-- No Supabase development branches currently exist.
+- Docker Desktop could not be installed. A hosted development branch was quoted at $0.01344/hour and declined.
+- The no-Docker workflow is now documented in `docs/VELLARA_NO_DOCKER_DEVELOPMENT_WORKFLOW.md`.
+- Production remains read-only. No test records, experimental migrations, or schema changes are authorized by this workaround.
 - Clean isolated replay and live-versus-isolated schema comparison remain unverified.
 - A least-privilege review remains necessary because RLS being enabled does not by itself establish that table grants are appropriately restricted.
-- Existing production schema must remain unchanged during local/isolated validation.
 
-Phase 1 has not been declared started or complete. It begins after the Phase 0 exit gate is satisfied, or after any remaining Phase 0 risks are explicitly accepted and tracked.
+Phase 1 domain design has begun in parallel, without claiming database implementation:
+- Accommodation/property model proposal is documented in `docs/VELLARA_PHASE_1_DOMAIN_DESIGN.md`.
+- The proposal preserves existing `rooms`, `guests`, and `reservations` compatibility and requires decisions before schema changes.
+- Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
+
+Phase 0 database acceptance gates remain open. Phase 1 design is in progress; Phase 1 implementation and acceptance are not yet complete.
