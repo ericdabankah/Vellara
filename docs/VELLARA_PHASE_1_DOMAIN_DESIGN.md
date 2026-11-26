@@ -199,11 +199,10 @@ Each migration must be additive, preserve existing reservation protections, and 
 - **Resolved:** organization-level default currency and timezone, with nullable per-property overrides. A property inherits either default independently unless it explicitly overrides that setting.
 - **Resolved:** a room may move between properties only when it has no active or future reservations. Transfers must be authorized, audited, and preserve the prior property association in history; historical reservations are never rewritten.
 - **Resolved:** enquiries do not block inventory. Pending bookings may block a unit only through an explicit time-limited hold with an expiry timestamp. The business configures the hold duration; expiry releases inventory, and hold creation/availability checks must be concurrency-safe. Payment state remains separate from reservation state.
-- Are room types property-specific or shared across all properties under one organization?
 - Does a property need property-level staff access in the first operational release?
 - Are room rates simple nightly prices initially, or do seasonal/date-based rate plans belong in Phase 1?
 
-Remaining decisions must be resolved before writing the migration.
+Remaining decisions must be resolved before writing the migration. Room-type scope and the pending-hold policy are resolved as recorded above.
 
 ## 10. Acceptance checklist
 
