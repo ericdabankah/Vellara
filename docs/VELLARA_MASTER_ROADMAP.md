@@ -241,5 +241,8 @@ Phase 1 domain design has begun in parallel, without claiming database implement
 - Accommodation/property model proposal is documented in `docs/VELLARA_PHASE_1_DOMAIN_DESIGN.md`.
 - The proposal preserves existing `rooms`, `guests`, and `reservations` compatibility and requires decisions before schema changes.
 - Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
+- The Owner Desk now stays on Overview for a new workspace without a subscription; Plans remains available through navigation instead of being forced as the landing page.
+- The live reception hero now distinguishes a ringing incoming call from an in-progress call and includes restrained pulse/transform motion with reduced-motion support. Call controls remain disabled until the verified call-control integration exists.
+- GitHub Actions Frontend CI was triggered for the latest frontend commit; build/type-check result is pending at this update.
 
-Phase 0 database acceptance gates remain open. Phase 1 design is in progress; Phase 1 implementation and acceptance are not yet complete.
+Phase 0 database acceptance gates remain open. Phase 1 design and limited frontend foundation work are in progress; Phase 1 implementation and acceptance are not yet complete.
