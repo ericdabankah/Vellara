@@ -145,7 +145,7 @@ All tenant-owned records need tenant-safe foreign keys, RLS policies, appropriat
 ## 10. Required implementation sequence
 
 1. Audit the current GitHub branch, open PR, Supabase schema, migrations, RLS policies, functions, and frontend.
-2. Produce a schema gap analysis and a canonical migration reconciliation plan. The existing production migrations must be reproducible from repository files before further schema expansion.
+2. Keep the recovered 11-migration history canonical in the repository; validate clean local replay and compare the resulting schema, functions, triggers, policies, grants, and constraints against production before further schema expansion.
 3. Define the full data model and backend API/event contracts with the backend workstream.
 4. Implement missing database domains in small, reviewed migrations with RLS, constraints, indexes, and verification.
 5. Build the task-first Owner Desk and unified workflows against real data.
