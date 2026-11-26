@@ -286,32 +286,6 @@ function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData;
   </>;
 }
 
-function PropertiesPage({ properties, profile, schemaReady, schemaError }: { properties: PropertyRow[]; profile: BusinessProfile | null; schemaReady: boolean; schemaError: string }) {
-  const hospitality = properties.filter((property) => property.vertical === "hospitality");
-  const realEstate = properties.filter((property) => property.vertical === "real_estate");
-  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is not active yet</h2><p>The Owner Desk is ready for this module, but the connected database does not expose the new property tables yet. The migration is being reviewed and has not been applied to the live database.</p><small>{schemaError}</small></section>;
-  return <div className="property-management">
-    <section className="property-summary-grid">
-      <article className="metric-card"><div className="metric-top"><span>All properties</span><i><BedDouble /></i></div><strong>{properties.length}</strong><small>Across enabled business verticals</small></article>
-      <article className="metric-card"><div className="metric-top"><span>Hospitality</span><i><BedDouble /></i></div><strong>{hospitality.length}</strong><small>Hotels, serviced apartments and stays</small></article>
-      <article className="metric-card"><div className="metric-top"><span>Real estate</span><i><LayoutDashboard /></i></div><strong>{realEstate.length}</strong><small>Sales and rental property portfolios</small></article>
-    </section>
-    <section className="surface data-surface">
-      <div className="table-toolbar"><div><h2>Property portfolio</h2><p>Each property has its own operational space and access boundary.</p></div><span className="table-meta">{properties.length} properties</span></div>
-      {properties.length ? <div className="property-grid">{properties.map((property) => {
-        const currency = property.currency_override || profile?.currency || "GHS";
-        const timezone = property.timezone_override || profile?.timezone || "Africa/Accra";
-        return <article className="property-card" key={property.id}>
-          <div className="property-card-top"><span className="property-vertical">{property.vertical === "hospitality" ? "HOSPITALITY" : "REAL ESTATE"}</span><span className={pill(property.status)}>{property.status}</span></div>
-          <h3>{property.name}</h3><p>{property.description || (property.vertical === "hospitality" ? "Hospitality property" : "Real-estate portfolio property")}</p>
-          <div className="property-address">{[property.city, property.region].filter(Boolean).join(", ") || "Address not added"}</div>
-          <div className="property-settings"><span><small>Currency</small><b>{currency}{property.currency_override ? " · custom" : " · inherited"}</b></span><span><small>Timezone</small><b>{timezone}{property.timezone_override ? " · custom" : " · inherited"}</b></span></div>
-        </article>;
-      })}</div> : <EmptyState title="Your property portfolio is empty" description="Create your first property. Rooms and room types will be managed inside their hospitality property, not at organization level." />}
-    </section>
-    <p className="property-footnote">Organization defaults: {profile?.currency || "GHS"} · {profile?.timezone || "Africa/Accra"}. Each property can override either setting independently.</p>
-  </div>;
-}
 function PropertyModal({ saving, onClose, onSubmit }: { saving: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="modal-card property-modal" onSubmit={onSubmit}>
     <div className="modal-heading"><div><span className="eyebrow">PROPERTY PORTFOLIO</span><h2>Add a property</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Close dialog"><X /></button></div>
