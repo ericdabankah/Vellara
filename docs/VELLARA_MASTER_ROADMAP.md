@@ -7,7 +7,7 @@
 
 ## Product delivery model
 
-VELLARA is a multi-tenant AI-powered business operating platform. The initial market is hotels, serviced apartments, short-stay apartments, and B&B operators. The architecture must allow future expansion without pulling deferred real-estate sales and autonomous physical reception into the first release.
+VELLARA is a multi-tenant AI-powered business operating platform serving multiple business verticals. Its product scope includes both accommodation/hospitality operations (hotels, serviced apartments, short-stay apartments, and B&Bs) and real-estate sales/rentals (including houses and other properties listed for sale). These are first-class VELLARA business domains, not unrelated products. Delivery is staged: accommodation operations are the initial implementation focus, while the real-estate domain receives its own listing, enquiry/lead, viewing, offer, negotiation, and transaction workflows in a later planned delivery slice. Do not model a property-for-sale as a hotel room or force sales transactions into accommodation reservations. Shared foundations such as organizations, staff permissions, customer identity, communications, AI knowledge/actions, media, payments, receipts, and branded websites should be reusable where appropriate, with domain-specific inventory and lifecycle models.
 
 The project is delivered through two coordinated primary workstreams:
 
@@ -43,7 +43,7 @@ Project controls:
 
 ### Phase 1 — Core business platform
 
-**Objective:** Enable staff to operate an accommodation business using real records, without depending on AI automation.
+**Objective:** Enable staff to operate an accommodation business using real records, without depending on AI automation. Establish shared platform foundations so the later real-estate vertical can use the same tenant, staff, customer, communication, and website capabilities without conflating its domain records with accommodation inventory.
 
 Frontend:
 - Owner Desk overview and business profile.
@@ -128,20 +128,19 @@ Database:
 
 ### Phase 5 — Customer-facing mini websites and booking
 
-**Objective:** Give each business a branded online destination connected to the same inventory and booking source of truth.
+**Objective:** Give each business a branded online destination connected to its authoritative domain records. The accommodation release supports availability and booking. The real-estate vertical will use the same website foundation for property-for-sale/rent listings, enquiries, viewing requests, and sales/rental lead journeys, backed by its own listing and transaction model.
 
 Frontend:
 - Branded mini website and listing pages.
-- Property/room media, descriptions, and pricing.
-- Availability display and enquiry.
-- Booking and checkout experience.
+- Accommodation: property/room media, descriptions, pricing, availability, enquiry, booking and checkout.
+- Real estate: property-for-sale/rent listing media, descriptions, asking prices, location/features, enquiry capture, viewing requests, and lead follow-up. Sales/offer/closing workflows require their own domain model and acceptance criteria.
 - Secure continuation/handoff from conversations.
 
 Database:
 - Website configuration, branding, publishing, and domain mapping.
-- Public listing projection.
-- Availability holds and expiry, with business-configurable duration and concurrency-safe inventory allocation.
-- Booking/checkout sessions.
+- Public listing projection with vertical-specific listing types.
+- Accommodation availability holds and expiry, with business-configurable duration and concurrency-safe inventory allocation.
+- Booking/checkout sessions, plus separately modelled real-estate viewing, offer, and transaction records when that workflow is delivered.
 - Scoped, expiring handoff tokens.
 
 **Exit gate:** Customers can discover accommodation, enquire, check availability, and complete a supported booking journey. Owner Desk changes are reflected from the authoritative records.
@@ -239,11 +238,13 @@ Phase 0 is in progress:
 
 Phase 1 domain design has begun in parallel, without claiming database implementation:
 - Accommodation/property model proposal is documented in `docs/VELLARA_PHASE_1_DOMAIN_DESIGN.md`.
-- The proposal preserves existing `rooms`, `guests`, and `reservations` compatibility. Organization-level currency/timezone defaults with independent nullable property overrides are approved; other domain decisions remain open.
+- The proposal preserves existing `rooms`, `guests`, and `reservations` compatibility. Organization-level currency/timezone defaults with independent nullable property overrides are approved.
 - Room transfers are now an approved domain rule: reject moves while active or future reservations exist; authorize and audit every accepted transfer; retain prior property association history and never rewrite historical reservations.
 - Room types are approved as property-specific and fully user-configurable. No fixed names or seeded catalogue; referenced types must retain history and be deactivated rather than destructively deleted.
 - Each room type supports a property-entered name, optional description, default capacity, configurable bed configuration, property-managed amenities, and an optional default nightly rate. Rooms may inherit these defaults or use explicit authorized overrides; rates use the property's effective currency.
 - Reservation holds are approved: enquiries never block inventory; pending bookings may block a unit only through an explicit, expiring hold. The business configures the hold duration. Expiry releases inventory, hold creation/availability checks must be concurrency-safe, and payment state remains separate from reservation state.
+- Property-level staff access is approved for Phase 1: owners can access all properties; managers and operations staff are limited to assigned properties unless explicitly granted broader access; verification permissions are narrowly scoped. Enforcement must be server-side and auditable.
+- Real-estate sales/rentals, including houses for sale, are confirmed as a first-class VELLARA product vertical. It is included in the product architecture and roadmap, with dedicated listing, viewing, lead, offer, and transaction models planned separately from accommodation rooms and reservations.
 - Frontend work can proceed against verified existing schema; screens requiring new property or room-type tables remain gated until database implementation is safe.
 - The Owner Desk now stays on Overview for a new workspace without a subscription; Plans remains available through navigation instead of being forced as the landing page.
 - The live reception hero now distinguishes a ringing incoming call from an in-progress call and includes restrained pulse/transform motion with reduced-motion support. Call controls remain disabled until the verified call-control integration exists.
