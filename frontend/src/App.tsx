@@ -237,7 +237,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         {notice && <div className="inline-alert alert-success" role="status"><Check size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {loading ? <div className="loading-panel"><span className="loader" />Loading your workspace data…</div> : <>
           {active === "Overview" && <Overview data={data} activeCall={activeCall} occupancy={occupancy} onNavigate={setActive} />}
-          {active === "Properties" && <PropertiesPage properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} onAdd={() => setPropertyModal(true)} />}
+          {active === "Properties" && <PropertiesPage properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} />}
           {active === "Calls" && <CallsPage calls={data.calls} />}
           {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} />}
@@ -285,7 +285,7 @@ function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData;
   </>;
 }
 
-function PropertiesPage({ properties, profile, schemaReady, schemaError, onAdd }: { properties: PropertyRow[]; profile: BusinessProfile | null; schemaReady: boolean; schemaError: string; onAdd: () => void }) {
+function PropertiesPage({ properties, profile, schemaReady, schemaError }: { properties: PropertyRow[]; profile: BusinessProfile | null; schemaReady: boolean; schemaError: string }) {
   const hospitality = properties.filter((property) => property.vertical === "hospitality");
   const realEstate = properties.filter((property) => property.vertical === "real_estate");
   if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is not active yet</h2><p>The Owner Desk is ready for this module, but the connected database does not expose the new property tables yet. The migration is being reviewed and has not been applied to the live database.</p><small>{schemaError}</small></section>;
@@ -296,7 +296,7 @@ function PropertiesPage({ properties, profile, schemaReady, schemaError, onAdd }
       <article className="metric-card"><div className="metric-top"><span>Real estate</span><i><LayoutDashboard /></i></div><strong>{realEstate.length}</strong><small>Sales and rental property portfolios</small></article>
     </section>
     <section className="surface data-surface">
-      <div className="table-toolbar"><div><h2>Property portfolio</h2><p>Each property has its own operational space and access boundary.</p></div><button className="secondary-button" onClick={onAdd}><Plus size={15} />Add property</button></div>
+      <div className="table-toolbar"><div><h2>Property portfolio</h2><p>Each property has its own operational space and access boundary.</p></div><span className="table-meta">{properties.length} properties</span></div>
       {properties.length ? <div className="property-grid">{properties.map((property) => {
         const currency = property.currency_override || profile?.currency || "GHS";
         const timezone = property.timezone_override || profile?.timezone || "Africa/Accra";
@@ -319,7 +319,7 @@ function PropertyModal({ saving, onClose, onSubmit }: { saving: boolean; onClose
       <Field label="Business vertical"><select name="vertical" defaultValue="hospitality"><option value="hospitality">Hospitality</option><option value="real_estate">Real estate</option></select></Field>
       <Field label="City"><input name="city" placeholder="e.g. Accra" /></Field>
       <Field label="Region"><input name="region" placeholder="e.g. Greater Accra" /></Field>
-      <Field label="Currency override"><select name="currency_override" defaultValue=""><option value="">Use workspace default ({'GHS'})</option><option value="GHS">GHS · Ghana cedi</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option><option value="EUR">EUR · Euro</option><option value="NGN">NGN · Nigerian naira</option></select></Field>
+      <Field label="Currency override"><select name="currency_override" defaultValue=""><option value="">Use workspace default (GHS)</option><option value="GHS">GHS · Ghana cedi</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option><option value="EUR">EUR · Euro</option><option value="NGN">NGN · Nigerian naira</option></select></Field>
       <Field label="Timezone override"><input name="timezone_override" placeholder="Leave blank to inherit, e.g. Africa/Accra" /></Field>
       <Field label="Description" wide><textarea name="description" rows={3} placeholder="A short description of this property." /></Field>
     </div>
