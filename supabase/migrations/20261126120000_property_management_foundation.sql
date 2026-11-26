@@ -331,7 +331,7 @@ alter table public.property_staff_assignments enable row level security;
 alter table public.room_types enable row level security;
 
 grant select, insert on public.properties to authenticated;
-grant update (vertical, name, slug, description, status, address_line_1, address_line_2, city, region, postal_code, country_code, timezone_override, currency_override) on public.properties to authenticated;
+grant update (name, slug, description, status, address_line_1, address_line_2, city, region, postal_code, country_code, timezone_override, currency_override) on public.properties to authenticated;
 grant select, insert on public.property_staff_assignments to authenticated;
 grant update (revoked_at) on public.property_staff_assignments to authenticated;
 grant select, insert on public.room_types to authenticated;
@@ -377,8 +377,9 @@ as $function$
 begin
   if new.id is distinct from old.id
      or new.organization_id is distinct from old.organization_id
-     or new.created_by is distinct from old.created_by then
-    raise exception 'Property identity fields are immutable'
+     or new.created_by is distinct from old.created_by
+     or new.vertical is distinct from old.vertical then
+    raise exception 'Property identity and vertical fields are immutable'
       using errcode = '42501';
   end if;
   return new;
