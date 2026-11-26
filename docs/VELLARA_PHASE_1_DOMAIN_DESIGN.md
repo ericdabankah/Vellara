@@ -40,11 +40,11 @@ Proposed attributes:
 - `property_type` (hotel, serviced_apartment, short_stay, bed_and_breakfast, other)
 - `description`
 - `address_line_1`, `address_line_2`, `city`, `region`, `country_code`, `postal_code`
-- `timezone`, `currency`
+- `timezone` (nullable override), `currency` (nullable override)
 - `status` (active, inactive, archived)
 - `created_at`, `updated_at`
 
-A property belongs to exactly one organization. Property reads and writes must check active organization membership and role. Composite uniqueness on `(organization_id, id)` should support tenant-safe child references.
+A property belongs to exactly one organization. Property reads and writes must check active organization membership and role. Composite uniqueness on `(organization_id, id)` should support tenant-safe child references. **Approved configuration rule:** each property inherits the organization's default currency and timezone unless it explicitly overrides either value. A null property-level value means inherit; it must not be treated as an independent fallback or silently copied as a permanent default. The Owner Desk should show the effective value and make overrides explicit. Currency and timezone resolution must be server-side as well as reflected in the UI.
 
 ### B. Room types
 
@@ -122,7 +122,7 @@ The property selector must be explicit when a tenant has more than one property.
 
 ### Create a property
 - Staff with the required permission opens Properties.
-- Enters property name, type, address, timezone, and currency.
+- Enters property name, type, and address; timezone and currency default to the organization settings, with optional explicit overrides.
 - Reviews and confirms.
 - UI reports success only after the database confirms the insert.
 - Property appears in the property switcher/list.
@@ -179,14 +179,14 @@ Each migration must be additive, preserve existing reservation protections, and 
 
 ## 9. Open decisions before schema implementation
 
-- Does each property have its own currency/timezone, or can the organization enforce one shared default with property-level overrides?
+- **Resolved:** organization-level default currency and timezone, with nullable per-property overrides. A property inherits either default independently unless it explicitly overrides that setting.
 - Can a room/unit be moved between properties, and if so, what happens to future reservations?
 - Are room types property-specific or shared across all properties under one organization?
 - Do pending reservations block inventory, and for how long?
 - Does a property need property-level staff access in the first operational release?
 - Are room rates simple nightly prices initially, or do seasonal/date-based rate plans belong in Phase 1?
 
-These decisions must be resolved before writing the migration.
+Remaining decisions must be resolved before writing the migration.
 
 ## 10. Acceptance checklist
 
