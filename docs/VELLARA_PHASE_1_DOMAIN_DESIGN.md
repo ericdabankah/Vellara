@@ -75,6 +75,8 @@ Existing fields remain authoritative where already used. The free-text `room_typ
 
 A safe migration must consider existing rooms with no property. Do not add a non-null property FK until a deterministic backfill strategy is implemented and tested. Do not silently assign existing inventory to a made-up property.
 
+**Approved room-transfer rule:** a room may be reassigned from one property to another only when it has no active or future reservations at the time of transfer. The transfer must be an atomic, authorized operation that records an audit event containing the room, source property, destination property, actor, timestamp, and reason where supplied. Preserve the previous property association in durable history; do not rewrite historical reservations or erase the room's prior property relationship. The backend/database must enforce the reservation eligibility check to prevent a UI-only or race-prone transfer. If the room has an active or future reservation, reject the transfer and explain why.
+
 ### D. Reservations
 
 Preserve the existing `reservations` table and its current tenant-safe references.
@@ -180,7 +182,7 @@ Each migration must be additive, preserve existing reservation protections, and 
 ## 9. Open decisions before schema implementation
 
 - **Resolved:** organization-level default currency and timezone, with nullable per-property overrides. A property inherits either default independently unless it explicitly overrides that setting.
-- Can a room/unit be moved between properties, and if so, what happens to future reservations?
+- **Resolved:** a room may move between properties only when it has no active or future reservations. Transfers must be authorized, audited, and preserve the prior property association in history; historical reservations are never rewritten.
 - Are room types property-specific or shared across all properties under one organization?
 - Do pending reservations block inventory, and for how long?
 - Does a property need property-level staff access in the first operational release?
@@ -197,6 +199,7 @@ Remaining decisions must be resolved before writing the migration.
 - [ ] Unassigned enquiries and walk-ins have explicit rules.
 - [ ] Role permissions are enforced server-side.
 - [ ] Property selection and metric scope are clear in the UI.
+- [ ] Room transfers reject active/future reservations, write an audit event, and preserve prior property association history.
 - [ ] Existing production data can be migrated without invented defaults.
 - [ ] Migrations replay and database tests pass in an isolated environment before production rollout.
 
