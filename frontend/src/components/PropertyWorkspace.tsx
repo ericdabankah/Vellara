@@ -123,7 +123,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     event.preventDefault();
     if (!supabase || !selected || selected.vertical !== "hospitality") return;
     const form = new FormData(event.currentTarget);
-    const bedConfiguration = Object.fromEntries(bedLabels.map(({ key }) => [key, Number(form.get("bed_" + key) ?? 0)]).filter(([, value]) => Number(value) > 0));
+    const bedConfiguration = Object.fromEntries(bedLabels.map(({ key }) => [key, Number(form.get("bed_" + key) ?? 0)] as const).filter(([, value]) => value > 0));
     const amenities = String(form.get("amenities") ?? "").split(",").map((item) => item.trim()).filter(Boolean).slice(0, 40);
     const rateText = String(form.get("default_rate") ?? "").trim();
     const payload = {
