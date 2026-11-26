@@ -15,7 +15,8 @@ create table public.organization_modules (
   check ((is_enabled and disabled_at is null) or (not is_enabled and disabled_at is not null))
 );
 alter table public.organization_modules enable row level security;
-grant select, insert, update on public.organization_modules to authenticated;
+grant select, insert on public.organization_modules to authenticated;
+grant update (is_enabled, disabled_at) on public.organization_modules to authenticated;
 grant all on public.organization_modules to service_role;
 
 insert into public.organization_modules (organization_id, module_key)
@@ -41,7 +42,7 @@ create table public.properties (
   country_code char(2) not null default 'GH' check (country_code ~ '^[A-Z]{2}$'),
   timezone_override text check (timezone_override is null or char_length(btrim(timezone_override)) between 1 and 80),
   currency_override char(3) check (currency_override is null or currency_override ~ '^[A-Z]{3}$'),
-  created_by uuid not null default auth.uid() references auth.users(id) on delete restrict,
+  created_by uuid default auth.uid() references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (organization_id, id),
@@ -62,9 +63,11 @@ create table public.property_staff_assignments (
     references public.properties(organization_id, id) on delete cascade,
   foreign key (organization_id, user_id)
     references public.organization_memberships(organization_id, user_id) on delete cascade,
-  unique (organization_id, property_id, user_id),
   check (revoked_at is null or revoked_at >= created_at)
 );
+create unique index property_staff_assignments_one_active
+  on public.property_staff_assignments (organization_id, property_id, user_id)
+  where revoked_at is null;
 create index property_staff_assignments_user_active_idx
   on public.property_staff_assignments (organization_id, user_id, property_id)
   where revoked_at is null;
@@ -115,6 +118,10 @@ security definer
 set search_path = ''
 as $function$
 begin
+  if (select auth.uid()) is null then
+    return new;
+  end if;
+
   if new.created_by is distinct from (select auth.uid()) then
     raise exception 'Property creator must be the authenticated user'
       using errcode = '42501';
@@ -128,7 +135,7 @@ begin
     and membership.user_id = new.created_by
     and membership.status = 'active'
     and membership.role::text <> 'owner'
-  on conflict (organization_id, property_id, user_id) do nothing;
+  on conflict do nothing;
 
   return new;
 end;
@@ -154,7 +161,7 @@ create table public.room_types (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   foreign key (organization_id, property_id)
-    references public.properties(organization_id, id) on delete cascade,
+    references public.properties(organization_id, id) on delete restrict,
   unique (organization_id, property_id, id),
   check ((is_active and archived_at is null) or (not is_active and archived_at is not null))
 );
@@ -177,7 +184,7 @@ set is_enabled = true, disabled_at = null;
 
 insert into public.properties (organization_id, vertical, name, slug, description)
 select legacy_orgs.organization_id, 'hospitality',
-       coalesce(nullif(btrim(profile.display_name), ''), org.name) || ' (Legacy)',
+       pg_catalog.left(coalesce(nullif(btrim(profile.display_name), ''), org.name) || ' (Legacy)', 120),
        'legacy-property',
        'Automatically created to preserve existing room and reservation history.'
 from (
@@ -286,15 +293,49 @@ alter table public.reservations
 create index reservations_property_arrival_idx
   on public.reservations (organization_id, property_id, arrival_date, status);
 
+
+create or replace function private.enforce_hospitality_property()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if not exists (
+    select 1 from public.properties property
+    where property.organization_id = new.organization_id
+      and property.id = new.property_id
+      and property.vertical = 'hospitality'
+  ) then
+    raise exception 'This inventory record must belong to a hospitality property'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function private.enforce_hospitality_property() from public, anon, authenticated;
+
+create trigger room_types_require_hospitality_property
+before insert or update of organization_id, property_id on public.room_types
+for each row execute function private.enforce_hospitality_property();
+create trigger rooms_require_hospitality_property
+before insert or update of organization_id, property_id on public.rooms
+for each row execute function private.enforce_hospitality_property();
+create trigger reservations_require_hospitality_property
+before insert or update of organization_id, property_id on public.reservations
+for each row execute function private.enforce_hospitality_property();
+
 -- New tables are protected by RLS. Owners see every property; other roles
 -- must have an explicit active assignment for the property being accessed.
 alter table public.properties enable row level security;
 alter table public.property_staff_assignments enable row level security;
 alter table public.room_types enable row level security;
 
-grant select, insert, update on public.properties to authenticated;
-grant select, insert, update on public.property_staff_assignments to authenticated;
-grant select, insert, update on public.room_types to authenticated;
+grant select, insert on public.properties to authenticated;
+grant update (vertical, name, slug, description, status, address_line_1, address_line_2, city, region, postal_code, country_code, timezone_override, currency_override) on public.properties to authenticated;
+grant select, insert on public.property_staff_assignments to authenticated;
+grant update (revoked_at) on public.property_staff_assignments to authenticated;
+grant select, insert on public.room_types to authenticated;
+grant update (name, description, default_capacity, bed_configuration, amenities, default_nightly_rate_minor, is_active, archived_at) on public.room_types to authenticated;
 grant all on public.properties, public.property_staff_assignments, public.room_types to service_role;
 
 create policy organization_modules_member_read
@@ -326,19 +367,35 @@ create policy properties_owner_manager_insert
 create policy properties_owner_manager_update
   on public.properties for update to authenticated
   using ((select private.has_property_role(organization_id, id, array['owner','manager']::text[])))
-  with check (
-    (select private.has_property_role(organization_id, id, array['owner','manager']::text[]))
-    and created_by = (select auth.uid()) or
-    (select private.has_property_role(organization_id, id, array['owner','manager']::text[]))
-  );
+  with check ((select private.has_property_role(organization_id, id, array['owner','manager']::text[])));
+
+create or replace function private.protect_property_identity()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if new.id is distinct from old.id
+     or new.organization_id is distinct from old.organization_id
+     or new.created_by is distinct from old.created_by then
+    raise exception 'Property identity fields are immutable'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function private.protect_property_identity() from public, anon, authenticated;
+create trigger properties_protect_identity
+before update on public.properties
+for each row execute function private.protect_property_identity();
 
 create policy property_staff_assignments_member_read
   on public.property_staff_assignments for select to authenticated
   using ((select private.has_property_role(organization_id, property_id, array['owner','manager']::text[])));
-create policy property_staff_assignments_manager_insert
+create policy property_staff_assignments_owner_insert
   on public.property_staff_assignments for insert to authenticated
   with check (
-    (select private.has_property_role(organization_id, property_id, array['owner','manager']::text[]))
+    (select private.has_organization_role(organization_id, array['owner']::text[]))
     and exists (
       select 1 from public.organization_memberships membership
       where membership.organization_id = property_staff_assignments.organization_id
@@ -346,10 +403,10 @@ create policy property_staff_assignments_manager_insert
         and membership.status = 'active'
     )
   );
-create policy property_staff_assignments_manager_update
+create policy property_staff_assignments_owner_update
   on public.property_staff_assignments for update to authenticated
-  using ((select private.has_property_role(organization_id, property_id, array['owner','manager']::text[])))
-  with check ((select private.has_property_role(organization_id, property_id, array['owner','manager']::text[])));
+  using ((select private.has_organization_role(organization_id, array['owner']::text[])))
+  with check ((select private.has_organization_role(organization_id, array['owner']::text[])));
 
 create policy room_types_property_read
   on public.room_types for select to authenticated
@@ -361,6 +418,11 @@ create policy room_types_property_update
   on public.room_types for update to authenticated
   using ((select private.has_property_role(organization_id, property_id, array['owner','manager','operations']::text[])))
   with check ((select private.has_property_role(organization_id, property_id, array['owner','manager','operations']::text[])));
+
+revoke update on public.rooms from authenticated;
+grant update (room_number, room_type_id, floor_label, capacity, status, nightly_rate_minor, currency, notes) on public.rooms to authenticated;
+revoke update on public.reservations from authenticated;
+grant update (guest_id, room_id, confirmation_code, status, source, arrival_date, departure_date, adults, children, total_amount_minor, currency, special_requests) on public.reservations to authenticated;
 
 drop policy if exists rooms_member_read on public.rooms;
 drop policy if exists rooms_ops_insert on public.rooms;
