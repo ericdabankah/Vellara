@@ -163,7 +163,7 @@ create table public.room_types (
   foreign key (organization_id, property_id)
     references public.properties(organization_id, id) on delete restrict,
   unique (organization_id, property_id, id),
-  check ((is_active and archived_at is null) or (not is_active and archived_at is not null))
+  check (archived_at is null or not is_active)
 );
 create unique index room_types_property_name_unique
   on public.room_types (organization_id, property_id, lower(name));
