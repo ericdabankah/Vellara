@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 import AuthGate from "./auth/AuthGate";
+import PropertyWorkspace from "./components/PropertyWorkspace";
 import { supabase } from "./lib/supabase";
 
 type Workspace = { id: string; name: string; businessType: string; role: string };
@@ -237,7 +238,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         {notice && <div className="inline-alert alert-success" role="status"><Check size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {loading ? <div className="loading-panel"><span className="loader" />Loading your workspace data…</div> : <>
           {active === "Overview" && <Overview data={data} activeCall={activeCall} occupancy={occupancy} onNavigate={setActive} />}
-          {active === "Properties" && <PropertiesPage properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} />}
+          {active === "Properties" && <PropertyWorkspace workspaceId={workspace.id} properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} onRefresh={() => reload(true)} />}
           {active === "Calls" && <CallsPage calls={data.calls} />}
           {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} />}
