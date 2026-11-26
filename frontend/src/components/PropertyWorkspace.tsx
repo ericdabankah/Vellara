@@ -126,9 +126,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     const bedConfiguration = Object.fromEntries(bedLabels.map(({ key }) => [key, Number(form.get("bed_" + key) ?? 0)] as const).filter(([, value]) => value > 0));
     const amenities = String(form.get("amenities") ?? "").split(",").map((item) => item.trim()).filter(Boolean).slice(0, 40);
     const rateText = String(form.get("default_rate") ?? "").trim();
-    const payload = {
-      organization_id: workspaceId,
-      property_id: selected.id,
+    const fields = {
       name: String(form.get("name") ?? "").trim(),
       description: String(form.get("description") ?? "").trim(),
       default_capacity: Number(form.get("default_capacity") ?? 2),
@@ -139,8 +137,8 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     setSaving(true); setError(""); setNotice("");
     const db = supabase as unknown as SupabaseClient<any>;
     const result = editingType
-      ? await db.from("room_types").update(payload).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
-      : await db.from("room_types").insert(payload).select("id").maybeSingle();
+      ? await db.from("room_types").update(fields).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
+      : await db.from("room_types").insert({ ...fields, organization_id: workspaceId, property_id: selected.id }).select("id").maybeSingle();
     if (result.error) setError(result.error.message);
     else if (!result.data) setError("The room type was not saved. Check your property access.");
     else {
