@@ -229,6 +229,9 @@ Commercial decisions such as prices, trials, billing intervals, and provider sel
 Phase 0 is in progress:
 - The 11 original Supabase migrations have been recovered from Supabase migration history and restored to the repository.
 - All 11 repository files were compared against their original stored statements and matched exactly, after normalizing the trailing newline.
+- The live project is currently `ACTIVE_HEALTHY`; its migration history lists the same 11 recovered versions.
+- Supabase security and health advisors returned no lints in the 2026-11-26 check.
+- No Supabase development branches currently exist.
 - Clean isolated replay and live-versus-isolated schema comparison remain unverified.
 - A least-privilege review remains necessary because RLS being enabled does not by itself establish that table grants are appropriately restricted.
 - Existing production schema must remain unchanged during local/isolated validation.
