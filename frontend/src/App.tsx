@@ -11,7 +11,7 @@ type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" |
 type CallRow = { id: string; status: string; direction: string; caller_e164: string | null; guest_name: string | null; started_at: string; duration_seconds: number | null; outcome: string | null; summary: string };
 type GuestRow = { id: string; full_name: string; phone_e164: string | null; email: string | null; notes: string; source: string; created_at: string };
 type RoomRow = { id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
-type PropertyRow = { id: string; vertical: "hospitality" | "real_estate"; name: string; slug: string; description: string; status: string; city: string | null; region: string | null; timezone_override: string | null; currency_override: string | null; created_at: string };
+type PropertyRow = { id: string; address_line_1?: string | null; vertical: "hospitality" | "real_estate"; name: string; slug: string; description: string; status: string; city: string | null; region: string | null; timezone_override: string | null; currency_override: string | null; created_at: string };
 type ReservationRow = { id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
 type PhoneRow = { id: string; phone_e164: string; label: string; status: string; verification_status: string; phone_number_channels: { channel: string; status: string }[] };
 type ReceptionistRow = { id: string; display_name: string; description: string; status: string; language_code: string; timezone: string };
@@ -95,7 +95,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).eq("status", "occupied"),
     ]);
     const [propertyRows, moduleRows] = await Promise.all([
-      propertyDb.from("properties").select("id,vertical,name,slug,description,status,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
+      propertyDb.from("properties").select("id,vertical,name,slug,description,status,address_line_1,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
     ]);
     if (propertyRows.error || moduleRows.error) {
