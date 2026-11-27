@@ -186,7 +186,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         organization_id: workspace.id, property_id: property.id, guest_id: String(form.get("guest_id") ?? "") || null,
         room_id: roomId, arrival_date: String(form.get("arrival_date") ?? ""),
         departure_date: String(form.get("departure_date") ?? ""), adults: Number(form.get("adults") ?? 1),
-        children: Number(form.get("children") ?? 0), status: "pending", source: "owner_desk",
+        children: Number(form.get("children") ?? 0), status: roomId ? "pending" : "inquiry", source: "owner_desk",
         special_requests: String(form.get("special_requests") ?? "").trim(),
         currency: property.currency_override ?? data.profile?.currency ?? "GHS",
       });
