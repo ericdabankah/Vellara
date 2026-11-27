@@ -8,7 +8,7 @@ This review covers the proposed property-management migration and the inventory 
 
 The live Supabase catalog was inspected read-only on 2026-11-27. At that time, the inspected property-domain objects `properties`, `room_types`, `property_staff_assignments`, and `organization_modules`, plus `private.has_property_role`, were absent. The live database still had the legacy organization-level policies on `rooms` and `reservations`. Therefore, the property authorization model below describes the proposed migration state, not active production behavior.
 
-A broader live privilege scan found `anon` and `authenticated` have `DELETE`, `REFERENCES`, `TRIGGER`, and `TRUNCATE` grants across 13 public tables: activity events, calls, guests, phone-number records, organization subscriptions, channel records, receptionist instances/routes, reservations, rooms, and the three subscription catalogue tables. RLS does not protect `TRUNCATE`. The forward migration `20261127150000_restrict_inventory_table_privileges.sql` now removes anonymous/public access from tenant-owned tables, removes unnecessary authenticated write/administrative privileges, and preserves SELECT-only public access to the subscription catalogue. It has not been applied.
+A broader live privilege scan found `anon` and `authenticated` have `DELETE`, `REFERENCES`, `TRIGGER`, and `TRUNCATE` grants across 13 public tables: activity events, calls, guests, phone-number records, organization subscriptions, channel records, receptionist instances/routes, reservations, rooms, and the three subscription catalogue tables. `has_table_privilege` also confirmed both roles have `MAINTAIN` and `TRUNCATE` on all 13 inspected tables. RLS does not protect `TRUNCATE` or `MAINTAIN`. The forward migration `20261127150000_restrict_inventory_table_privileges.sql` now removes anonymous/public access from tenant-owned tables, removes unnecessary authenticated write/administrative privileges, includes the new property-domain tables, and preserves SELECT-only public access to the subscription catalogue. It has not been applied.
 
 ## 2. Proposed authorization model
 
@@ -43,6 +43,12 @@ Expected privilege posture after the complete migration stack is replayed:
 
 Verify effective privileges with `has_table_privilege` in the isolated database, not only by reading migration text or `information_schema`.
 
+### Default-privilege root cause
+
+Read-only inspection of `pg_default_acl` found broad default table privileges for both `postgres` and `supabase_admin` in the `public` schema. Those defaults grant `anon` and `authenticated` table privileges including DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, and UPDATE on newly created tables. This explains why the same grant pattern appears across many tables. The exact historical reason those defaults were configured this way is not established.
+
+The current migration is intentionally table-scoped. A global default-privilege change could silently break public catalogue reads or authenticated access for future tables unless every migration is audited and explicit grants are added. Do not change global defaults as part of this PR. Before any new public table is added, its intended role grants must be explicit and checked against the inherited defaults. A separate default-privilege remediation should follow a complete migration inventory.
+
 ## 4. Required isolated-database authorization tests
 
 These tests must be run after replaying the complete migration chain, including the corrected legacy backfill. Use two organizations and multiple users. Do not seed or experiment in production.
@@ -74,7 +80,7 @@ These tests must be run after replaying the complete migration chain, including 
 | INV-05 | Insert unassigned enquiry with a valid property | Allowed if all other reservation constraints pass |
 | INV-06 | Insert unassigned enquiry without property | Rejected by NOT NULL/FK |
 | GRANT-01 | Anonymous role accesses tenant-owned operational tables | Denied |
-| GRANT-02 | Authenticated role attempts DELETE/TRUNCATE/REFERENCES/TRIGGER on tenant-owned tables | Denied |
+| GRANT-02 | Authenticated role attempts DELETE/TRUNCATE/MAINTAIN/REFERENCES/TRIGGER on tenant-owned tables | Denied |
 | GRANT-03 | Authenticated role writes to read-only tenant tables | Denied at SQL privilege layer |
 | GRANT-04 | Anonymous/authenticated role reads subscription catalogue | Allowed; SELECT only |
 | GRANT-05 | Authenticated role performs permitted guest/room/reservation SELECT/INSERT and explicitly granted UPDATE columns | Allowed subject to RLS |
