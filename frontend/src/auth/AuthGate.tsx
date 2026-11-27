@@ -46,6 +46,7 @@ export default function AuthGate({ children }: Props) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const selectedWorkspaceId = useRef<string | null>(null);
+  const workspaceRequestVersion = useRef(0);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -66,18 +67,22 @@ export default function AuthGate({ children }: Props) {
     }
 
     let mounted = true;
+    let authEventVersion = 0;
     supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
+      if (!mounted || authEventVersion > 0) return;
       if (error) setErrorMessage(error.message);
       setSession(data.session);
       setAuthLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      authEventVersion += 1;
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (event === "SIGNED_OUT") setRecoveryMode(false);
       setSession(nextSession);
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        workspaceRequestVersion.current += 1;
+        setWorkspaceLoading(false);
         setWorkspace(null);
         setWorkspaces([]);
         selectedWorkspaceId.current = null;
@@ -93,6 +98,8 @@ export default function AuthGate({ children }: Props) {
 
   const loadWorkspace = useCallback(async () => {
     if (!supabase || !session?.user.id) return;
+    const requestId = ++workspaceRequestVersion.current;
+    const isCurrent = () => workspaceRequestVersion.current === requestId;
     setWorkspaceLoading(true);
     setErrorMessage("");
 
@@ -102,6 +109,7 @@ export default function AuthGate({ children }: Props) {
       .eq("user_id", session.user.id)
       .eq("status", "active");
 
+    if (!isCurrent()) return;
     if (membershipResult.error) {
       setErrorMessage(membershipResult.error.message);
       setWorkspaceLoading(false);
@@ -110,7 +118,9 @@ export default function AuthGate({ children }: Props) {
 
     const memberships = (membershipResult.data ?? []) as MembershipRow[];
     if (memberships.length === 0) {
+      setWorkspaces([]);
       setWorkspace(null);
+      selectedWorkspaceId.current = null;
       setWorkspaceLoading(false);
       return;
     }
@@ -122,6 +132,7 @@ export default function AuthGate({ children }: Props) {
       .in("id", organizationIds)
       .eq("status", "active");
 
+    if (!isCurrent()) return;
     if (organizationResult.error) {
       setErrorMessage(organizationResult.error.message);
       setWorkspaceLoading(false);
@@ -142,6 +153,7 @@ export default function AuthGate({ children }: Props) {
       .select("organization_id, business_type, display_name")
       .in("organization_id", organizations.map((organization) => organization.id));
 
+    if (!isCurrent()) return;
     if (businessResult.error) {
       setErrorMessage(businessResult.error.message);
       setWorkspaceLoading(false);
