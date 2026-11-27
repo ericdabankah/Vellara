@@ -2,6 +2,26 @@
 -- This RPC runs as the authenticated caller so the existing RLS policies
 -- remain in force. Module enablement and property creation share one transaction.
 
+-- Preserve enabled_at semantics without granting callers direct write access
+-- to that column.
+create or replace function private.track_organization_module_enablement()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if not old.is_enabled and new.is_enabled then
+    new.enabled_at := now();
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function private.track_organization_module_enablement() from public, anon, authenticated;
+
+create trigger organization_modules_track_enablement
+before update of is_enabled, disabled_at on public.organization_modules
+for each row execute function private.track_organization_module_enablement();
+
 create or replace function public.create_property(
   p_organization_id uuid,
   p_vertical text,
@@ -82,12 +102,7 @@ begin
   )
   on conflict (organization_id, module_key) do update
     set is_enabled = true,
-        enabled_at = case
-          when existing_module.is_enabled then existing_module.enabled_at
-          else now()
-        end,
-        disabled_at = null,
-        updated_at = now();
+        disabled_at = null;
 
   insert into public.properties (
     organization_id, vertical, name, slug, description,
