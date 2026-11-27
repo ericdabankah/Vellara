@@ -215,8 +215,16 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
   async function updateStatus(table: "rooms" | "reservations", id: string, status: string) {
     if (!supabase) return;
     setError(""); setNotice("");
+    if (table === "reservations") {
+      const current = data.reservations.find((item) => item.id === id);
+      if (!current) { setError("Reservation not found in the current workspace. Refresh and try again."); return; }
+      if (!reservationNextStatuses(current.status).includes(status)) {
+        setError("That reservation status change is not allowed. Follow the available next step shown in the reservation ledger.");
+        return;
+      }
+    }
     const result = await supabase.from(table).update({ status }).eq("organization_id", workspace.id).eq("id", id).select("id").maybeSingle();
-    if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice("Changes saved."); await reload(true); }
+    if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice(table === "reservations" ? "Reservation status updated." : "Room status updated."); await reload(true); }
   }
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
@@ -349,6 +357,18 @@ function CallsPage({ calls }: { calls: CallRow[] }) {
   const rows = calls.filter((call) => (call.guest_name || "").toLowerCase().includes(query.toLowerCase()) || (call.caller_e164 || "").includes(query) || call.status.includes(query.toLowerCase()));
   return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Call history</h2><p>Most recent 100 recorded calls</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search calls" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Caller</th><th>Direction</th><th>Date & time</th><th>Duration</th><th>Status</th><th>Outcome</th></tr></thead><tbody>{rows.map((call) => <tr key={call.id}><td><b>{call.guest_name || "Unknown caller"}</b><small>{call.caller_e164 || "Number unavailable"}</small></td><td><span className="direction-cell">{call.direction === "inbound" ? <ArrowDownLeft /> : <ArrowUpRight />}{call.direction}</span></td><td>{dateText(call.started_at)}<small>{timeText(call.started_at)}</small></td><td>{call.duration_seconds == null ? "—" : Math.floor(call.duration_seconds / 60) + "m " + call.duration_seconds % 60 + "s"}</td><td><span className={pill(call.status)}>{call.status.replace("_", " ")}</span></td><td>{call.outcome || "—"}</td></tr>)}</tbody></table></div> : <EmptyState title="No calls recorded" description="Call records appear here when the voice backend sends verified call events." />}</section>;
 }
+function reservationNextStatuses(status: string): string[] {
+  const transitions: Record<string, string[]> = {
+    inquiry: ["pending", "canceled"],
+    pending: ["confirmed", "inquiry", "canceled"],
+    confirmed: ["checked_in", "canceled", "no_show"],
+    checked_in: ["checked_out"],
+    checked_out: [],
+    canceled: [],
+    no_show: [],
+  };
+  return transitions[status] ?? [];
+}
 function ReservationsPage({ reservations, guests, rooms, properties, onStatus }: { reservations: ReservationRow[]; guests: GuestRow[]; rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
   const [query, setQuery] = useState("");
   const rows = reservations.filter((r) => {
@@ -357,7 +377,7 @@ function ReservationsPage({ reservations, guests, rooms, properties, onStatus }:
     const property = properties.find((item) => item.id === r.property_id);
     return ((guest?.full_name || "") + " " + (room?.room_number || "") + " " + (property?.name || "") + " " + (r.confirmation_code || "") + " " + r.status).toLowerCase().includes(query.toLowerCase());
   });
-  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Reservation ledger</h2><p>Guest stays and booking requests across your properties</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search reservations" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Property</th><th>Guest</th><th>Room</th><th>Stay</th><th>Guests</th><th>Amount</th><th>Status</th><th>Update</th></tr></thead><tbody>{rows.map((r) => { const guest = guests.find((g) => g.id === r.guest_id); const room = rooms.find((item) => item.id === r.room_id); const property = properties.find((item) => item.id === r.property_id); return <tr key={r.id}><td><b>{property?.name || "Property unavailable"}</b><small>{property?.city || "Hospitality property"}</small></td><td><b>{guest?.full_name || "Guest enquiry"}</b><small>{r.confirmation_code || "No confirmation code"}</small></td><td>{room?.room_number || "Unassigned"}<small>{room?.room_type || "Room pending"}</small></td><td>{dateText(r.arrival_date)}<small>to {dateText(r.departure_date)}</small></td><td>{r.adults} adults, {r.children} children</td><td>{cash(r.total_amount_minor, r.currency)}</td><td><span className={pill(r.status)}>{r.status.replace("_", " ")}</span></td><td><select className="inline-select" value={r.status} onChange={(event) => void onStatus("reservations", r.id, event.target.value)}><option value="inquiry">Inquiry</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="checked_in">Checked in</option><option value="checked_out">Checked out</option><option value="canceled">Canceled</option><option value="no_show">No show</option></select></td></tr>; })}</tbody></table></div> : <EmptyState title="No reservations yet" description="Create a property-specific reservation or an unassigned enquiry for one of your properties." />}</section>;
+  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Reservation ledger</h2><p>Guest stays and booking requests across your properties</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search reservations" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Property</th><th>Guest</th><th>Room</th><th>Stay</th><th>Guests</th><th>Amount</th><th>Status</th><th>Update</th></tr></thead><tbody>{rows.map((r) => { const guest = guests.find((g) => g.id === r.guest_id); const room = rooms.find((item) => item.id === r.room_id); const property = properties.find((item) => item.id === r.property_id); return <tr key={r.id}><td><b>{property?.name || "Property unavailable"}</b><small>{property?.city || "Hospitality property"}</small></td><td><b>{guest?.full_name || "Guest enquiry"}</b><small>{r.confirmation_code || "No confirmation code"}</small></td><td>{room?.room_number || "Unassigned"}<small>{room?.room_type || "Room pending"}</small></td><td>{dateText(r.arrival_date)}<small>to {dateText(r.departure_date)}</small></td><td>{r.adults} adults, {r.children} children</td><td>{cash(r.total_amount_minor, r.currency)}</td><td><span className={pill(r.status)}>{r.status.replace("_", " ")}</span></td><td><select className="inline-select" aria-label={"Next status for reservation " + (r.confirmation_code || r.id)} value={r.status} disabled={reservationNextStatuses(r.status).length === 0} onChange={(event) => void onStatus("reservations", r.id, event.target.value)}><option value={r.status}>{r.status.replaceAll("_", " ")}</option>{reservationNextStatuses(r.status).map((next) => <option key={next} value={next}>{next.replaceAll("_", " ")}</option>)}</select></td></tr>; })}</tbody></table></div> : <EmptyState title="No reservations yet" description="Create a property-specific reservation or an unassigned enquiry for one of your properties." />}</section>;
 }
 function GuestsPage({ guests, reservations, rooms, properties }: { guests: GuestRow[]; reservations: ReservationRow[]; rooms: RoomRow[]; properties: PropertyRow[] }) {
   const [query, setQuery] = useState("");
