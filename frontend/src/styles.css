@@ -151,6 +151,13 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .direction-cell svg{width:14px;height:14px;color:#9a8355}
 .guest-cell{display:flex;align-items:center;gap:8px}
 .guest-cell>span{width:27px;height:27px;border-radius:50%;background:#eee8d9;color:#8b713e;display:grid;place-items:center;font-size:8px;font-weight:800}
+.guest-profile-trigger{display:inline-flex;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;border-radius:6px}.guest-profile-trigger:focus-visible{outline:2px solid #b99a5c;outline-offset:4px}.guest-profile-trigger:hover b{color:#92733b}
+.guest-profile-modal{width:min(100%,680px)}
+.guest-profile-contact{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px;background:#f6f4ed;border:1px solid #ece8dc;border-radius:9px}.guest-profile-contact>div{display:flex;flex-direction:column;gap:5px;min-width:0}.guest-profile-contact small{font-size:8px;letter-spacing:.09em;font-weight:800;color:#89948b}.guest-profile-contact b{font-size:11px;color:#304239;overflow-wrap:anywhere}
+.guest-notes{margin-top:17px;padding:14px 0;border-bottom:1px solid #efede7}.guest-notes p{margin:7px 0 0;color:#56645a;font-size:11px;line-height:1.65;white-space:pre-wrap}
+.guest-history-heading{display:flex;align-items:center;justify-content:space-between;margin:19px 0 10px}.guest-history-heading h3{margin:5px 0 0;font:700 14px Manrope,sans-serif;color:#263a2f}.guest-history-list{display:flex;flex-direction:column;gap:8px}.guest-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px;border:1px solid #ece8dc;border-radius:8px}.guest-history-item>div{display:flex;flex-direction:column;gap:5px;min-width:0}.guest-history-item b{font-size:10px;color:#304239}.guest-history-item small{font-size:8px;color:#89948b}.guest-history-item>strong{font-size:10px;color:#304239;white-space:nowrap}
+@media(max-width:560px){.guest-profile-contact{grid-template-columns:1fr}.guest-history-item{grid-template-columns:1fr auto}.guest-history-item>strong{grid-column:1/-1;text-align:right}}
+
 .source-label{font-size:9px;color:#8b968e;text-transform:capitalize}
 .inline-select,.room-status-select{height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:#fffefa;color:#657268;font-size:9px}
 .table-empty{min-height:310px}
