@@ -354,3 +354,25 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .bed-configuration-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .bed-configuration-grid .field input{min-height:36px}
 @media(max-width:740px){.property-detail-header{align-items:flex-start;flex-direction:column}.room-type-row{align-items:flex-start;flex-wrap:wrap}.room-type-main{min-width:calc(100% - 55px)}.room-type-rate{margin-left:51px}.room-type-actions{margin-left:auto}.bed-configuration-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.room-status-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:5px 0 15px}
+.room-status-summary-card{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;border:1px solid #ece8dc;border-radius:8px;background:#fff;text-align:left;cursor:pointer;min-width:0}
+.room-status-summary-card.selected{border-color:#b99a5c;background:#faf8f1;box-shadow:0 0 0 1px #b99a5c inset}
+.room-status-summary-card>b{font:700 18px Manrope,sans-serif;color:#304239}
+.room-operations-note{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;margin:0 0 13px;border:1px solid #e9e4d6;border-radius:8px;background:#faf9f5;color:#8e7747}
+.room-operations-note>svg{flex:0 0 auto;margin-top:1px}
+.room-operations-note p{margin:0;color:#6f786f;font-size:9px;line-height:1.6}
+.room-filter-row{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;color:#89948b;font-size:9px}
+.room-filter-row .text-button{border:0;background:transparent;color:#8b713e;font-size:9px;font-weight:700;cursor:pointer}
+.room-status-control{display:flex;flex-direction:column;gap:6px;margin-top:13px}
+.room-status-control>span{font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#89948b;font-weight:800}
+.room-status-select:disabled{opacity:.65;cursor:not-allowed}
+.activity-timeline{display:flex;flex-direction:column;padding:5px 4px}
+.activity-timeline-item{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px 8px;border-bottom:1px solid #f0ede6}
+.activity-timeline-item:last-child{border-bottom:0}
+.activity-timeline-marker{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#f3efe5;color:#9b804b}
+.activity-timeline-item>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.activity-timeline-item>div>b{font-size:10px;color:#405147;line-height:1.5}
+.activity-timeline-item>div>small,.activity-timeline-item>time{font-size:8px;color:#89948b}
+.activity-timeline-item>time{white-space:nowrap}
+@media(max-width:740px){.room-status-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-timeline-item{grid-template-columns:28px minmax(0,1fr)}.activity-timeline-item>time{grid-column:2}.room-status-summary-card{padding:9px}.room-status-summary-card .status-pill{font-size:7px}}
