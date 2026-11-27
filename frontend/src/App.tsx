@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
@@ -51,10 +51,10 @@ function initials(value: string) { return value.trim().split(/\s+/).slice(0, 2).
 function pill(status: string) { return "status-pill status-" + status.toLowerCase().replace(/[^a-z]+/g, "-"); }
 
 export default function App() {
-  return <AuthGate>{({ workspace, signOut }) => <OwnerDesk workspace={workspace} signOut={signOut} />}</AuthGate>;
+  return <AuthGate>{({ workspace, workspaces, onWorkspaceChange, signOut }) => <OwnerDesk workspace={workspace} workspaces={workspaces} onWorkspaceChange={onWorkspaceChange} signOut={signOut} />}</AuthGate>;
 }
 
-function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () => Promise<void> }) {
+function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { workspace: Workspace; workspaces: Workspace[]; onWorkspaceChange: (workspaceId: string) => void; signOut: () => Promise<void> }) {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [data, setData] = useState<DeskData>(blank);
@@ -69,9 +69,11 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   const [propertySchemaReady, setPropertySchemaReady] = useState(false);
   const [propertySchemaError, setPropertySchemaError] = useState("");
   const [propertyModal, setPropertyModal] = useState(false);
+  const requestVersion = useRef(0);
 
   const reload = useCallback(async (quiet = false) => {
     if (!supabase) return;
+    const requestId = ++requestVersion.current;
     quiet ? setRefreshing(true) : setLoading(true);
     setError("");
     const today = startOfAccraDay();
@@ -101,6 +103,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
       propertyDb.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
     ]);
+    if (requestId !== requestVersion.current) return;
     if (propertyRows.error || moduleRows.error) {
       setPropertySchemaReady(false);
       setPropertySchemaError(propertyRows.error?.message || moduleRows.error?.message || "Property schema is unavailable.");
@@ -124,7 +127,20 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     setLoading(false); setRefreshing(false);
   }, [workspace.id]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    setData(blank);
+    setProperties([]);
+    setRoomTypes([]);
+    setPropertySchemaReady(false);
+    setPropertySchemaError("");
+    setError("");
+    setNotice("");
+    setModal(null);
+    setPropertyModal(false);
+    setLoading(true);
+    void reload();
+    return () => { requestVersion.current += 1; };
+  }, [reload]);
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase.channel("owner-desk-" + workspace.id)
@@ -248,7 +264,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   return <div className="app-shell">
     <aside className={mobileMenu ? "sidebar sidebar-open" : "sidebar"}>
       <div className="brand-lockup"><div className="brand-mark">V</div><div><strong>VELLARA</strong><span>OWNER DESK</span></div><button className="icon-button sidebar-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X /></button></div>
-      <div className="workspace-switcher"><div className="workspace-avatar">{initials(workspace.name)}</div><div className="workspace-copy"><strong>{workspace.name}</strong><span>{workspace.businessType.replace("_", " ")}</span></div><ChevronDown size={15} /></div>
+      <div className="workspace-switcher"><div className="workspace-avatar">{initials(workspace.name)}</div><div className="workspace-copy"><strong>{workspace.name}</strong><span>{workspace.businessType.replace("_", " ")}</span></div>{workspaces.length > 1 ? <select className="workspace-select" aria-label="Switch workspace" value={workspace.id} onChange={(event) => onWorkspaceChange(event.target.value)}>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.businessType.replace("_", " ")}</option>)}</select> : <ChevronDown size={15} />}</div>
       <div className="nav-section"><span>WORKSPACE</span>{nav.filter((item) => item.group === "workspace").map((item) => <button key={item.name} className={active === item.name ? "nav-link nav-active" : "nav-link"} onClick={() => { setActive(item.name); setMobileMenu(false); }}>{item.icon}{item.name}</button>)}</div>
       <div className="nav-section"><span>CONFIGURATION</span>{nav.filter((item) => item.group === "manage").map((item) => <button key={item.name} className={active === item.name ? "nav-link nav-active" : "nav-link"} onClick={() => { setActive(item.name); setMobileMenu(false); }}>{item.icon}{item.name}</button>)}</div>
       <div className="sidebar-bottom"><div className="security-note"><ShieldCheck size={16} /><span><b>Workspace protected</b><small>Tenant-isolated access</small></span></div><button className={active === "Settings" ? "nav-link nav-active" : "nav-link"} onClick={() => { setActive("Settings"); setMobileMenu(false); }}><Settings />Settings</button><div className="profile-strip"><div className="profile-avatar">{initials(workspace.name)}</div><div><b>{workspace.name}</b><small>{workspace.role}</small></div><button className="icon-button" onClick={() => void signOut()} aria-label="Sign out"><LogOut size={17} /></button></div></div>
