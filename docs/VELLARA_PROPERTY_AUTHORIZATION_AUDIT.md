@@ -45,7 +45,7 @@ Verify effective privileges with `has_table_privilege` in the isolated database,
 
 ### Default-privilege root cause
 
-Read-only inspection of `pg_default_acl` found broad default table privileges for both `postgres` and `supabase_admin` in the `public` schema. Those defaults grant `anon` and `authenticated` table privileges including DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, and UPDATE on newly created tables. This explains why the same grant pattern appears across many tables. The exact historical reason those defaults were configured this way is not established.
+Read-only inspection of `pg_default_acl` found broad default table privileges for both `postgres` and `supabase_admin` in the `public` schema. Those defaults grant `anon` and `authenticated` table privileges including DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, and UPDATE on newly created tables. All 13 inspected tables are owned by `postgres`, so their repeated grant pattern is consistent with inheritance from the `postgres` default ACL. The exact historical reason those defaults were configured this way is not established.
 
 The current migration is intentionally table-scoped. A global default-privilege change could silently break public catalogue reads or authenticated access for future tables unless every migration is audited and explicit grants are added. Do not change global defaults as part of this PR. Before any new public table is added, its intended role grants must be explicit and checked against the inherited defaults. A separate default-privilege remediation should follow a complete migration inventory.
 
