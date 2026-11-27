@@ -25,7 +25,34 @@ begin
       using errcode = '23514';
   end if;
 
-  if tg_table_name = 'rooms' and not exists (
+  return new;
+end;
+$function$;
+
+revoke all on function private.enforce_hospitality_property() from public, anon, authenticated;
+
+drop trigger if exists room_types_require_hospitality_property on public.room_types;
+create trigger room_types_require_hospitality_property
+before insert or update of organization_id, property_id on public.room_types
+for each row execute function private.enforce_hospitality_property();
+
+drop trigger if exists rooms_require_hospitality_property on public.rooms;
+create trigger rooms_require_hospitality_property
+before insert or update of organization_id, property_id on public.rooms
+for each row execute function private.enforce_hospitality_property();
+
+drop trigger if exists reservations_require_hospitality_property on public.reservations;
+create trigger reservations_require_hospitality_property
+before insert or update of organization_id, property_id on public.reservations
+for each row execute function private.enforce_hospitality_property();
+
+create or replace function private.enforce_active_room_type()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if not exists (
     select 1
     from public.room_types room_type
     where room_type.organization_id = new.organization_id
@@ -42,19 +69,9 @@ begin
 end;
 $function$;
 
-revoke all on function private.enforce_hospitality_property() from public, anon, authenticated;
+revoke all on function private.enforce_active_room_type() from public, anon, authenticated;
 
-drop trigger if exists room_types_require_hospitality_property on public.room_types;
-create trigger room_types_require_hospitality_property
-before insert or update of organization_id, property_id on public.room_types
-for each row execute function private.enforce_hospitality_property();
-
-drop trigger if exists rooms_require_hospitality_property on public.rooms;
-create trigger rooms_require_hospitality_property
+drop trigger if exists rooms_require_active_room_type on public.rooms;
+create trigger rooms_require_active_room_type
 before insert or update of organization_id, property_id, room_type_id on public.rooms
-for each row execute function private.enforce_hospitality_property();
-
-drop trigger if exists reservations_require_hospitality_property on public.reservations;
-create trigger reservations_require_hospitality_property
-before insert or update of organization_id, property_id on public.reservations
-for each row execute function private.enforce_hospitality_property();
+for each row execute function private.enforce_active_room_type();
