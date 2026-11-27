@@ -10,9 +10,10 @@ type Workspace = { id: string; name: string; businessType: string; role: string 
 type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
 type CallRow = { id: string; status: string; direction: string; caller_e164: string | null; guest_name: string | null; started_at: string; duration_seconds: number | null; outcome: string | null; summary: string };
 type GuestRow = { id: string; full_name: string; phone_e164: string | null; email: string | null; notes: string; source: string; created_at: string };
-type RoomRow = { id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
+type RoomRow = { id: string; property_id: string; room_type_id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
+type RoomTypeRow = { id: string; property_id: string; name: string; default_capacity: number; default_nightly_rate_minor: number | null; is_active: boolean; archived_at: string | null };
 type PropertyRow = { id: string; address_line_1?: string | null; vertical: "hospitality" | "real_estate"; name: string; slug: string; description: string; status: string; city: string | null; region: string | null; timezone_override: string | null; currency_override: string | null; created_at: string };
-type ReservationRow = { id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
+type ReservationRow = { id: string; property_id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
 type PhoneRow = { id: string; phone_e164: string; label: string; status: string; verification_status: string; phone_number_channels: { channel: string; status: string }[] };
 type ReceptionistRow = { id: string; display_name: string; description: string; status: string; language_code: string; timezone: string };
 type RouteRow = { id: string; phone_number_id: string; receptionist_instance_id: string; channel: string; priority: number; is_enabled: boolean };
@@ -64,6 +65,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<ModalKind>(null);
   const [properties, setProperties] = useState<PropertyRow[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomTypeRow[]>([]);
   const [propertySchemaReady, setPropertySchemaReady] = useState(false);
   const [propertySchemaError, setPropertySchemaError] = useState("");
   const [propertyModal, setPropertyModal] = useState(false);
@@ -76,9 +78,9 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     const propertyDb = supabase as unknown as SupabaseClient<any>;
     const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
       supabase.from("calls").select("id,status,direction,caller_e164,guest_name,started_at,duration_seconds,outcome,summary").eq("organization_id", workspace.id).order("started_at", { ascending: false }).limit(100),
-      supabase.from("reservations").select("id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
+      supabase.from("reservations").select("id,property_id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
       supabase.from("guests").select("id,full_name,phone_e164,email,notes,source,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(200),
-      supabase.from("rooms").select("id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
+      supabase.from("rooms").select("id,property_id,room_type_id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
       supabase.from("organization_phone_numbers").select("id,phone_e164,label,status,verification_status,phone_number_channels(channel,status)").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       supabase.from("receptionist_number_routes").select("id,phone_number_id,receptionist_instance_id,channel,priority,is_enabled").eq("organization_id", workspace.id).order("priority", { ascending: true }),
       supabase.from("receptionist_instances").select("id,display_name,description,status,language_code,timezone").eq("organization_id", workspace.id).order("created_at", { ascending: true }),
@@ -94,9 +96,10 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id),
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).eq("status", "occupied"),
     ]);
-    const [propertyRows, moduleRows] = await Promise.all([
+    const [propertyRows, moduleRows, roomTypeRows] = await Promise.all([
       propertyDb.from("properties").select("id,vertical,name,slug,description,status,address_line_1,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
+      propertyDb.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
     ]);
     if (propertyRows.error || moduleRows.error) {
       setPropertySchemaReady(false);
@@ -106,7 +109,8 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       setPropertySchemaError("");
       setProperties((propertyRows.data ?? []) as PropertyRow[]);
     }
-    const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error].find(Boolean);
+    if (!roomTypeRows.error) setRoomTypes((roomTypeRows.data ?? []) as RoomTypeRow[]);
+    const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error, roomTypeRows.error].find(Boolean);
     if (failed) setError(failed.message);
     else setData({
       calls: (calls.data ?? []) as CallRow[], reservations: (reservations.data ?? []) as ReservationRow[],
@@ -150,20 +154,41 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         email: String(form.get("email") ?? "").trim() || null, notes: String(form.get("notes") ?? "").trim(), source: "owner_desk",
       });
     } else if (modal === "room") {
+      const propertyId = String(form.get("property_id") ?? "");
+      const roomTypeId = String(form.get("room_type_id") ?? "");
+      const selectedType = roomTypes.find((item) => item.id === roomTypeId && item.property_id === propertyId);
+      const property = properties.find((item) => item.id === propertyId && item.vertical === "hospitality" && item.status === "active");
       const rate = String(form.get("nightly_rate") ?? "").trim();
+      if (!property || !selectedType) {
+        setError("Choose an active hospitality property and one of its active room types.");
+        setSaving(false);
+        return;
+      }
       result = await supabase.from("rooms").insert({
-        organization_id: workspace.id, room_number: String(form.get("room_number") ?? "").trim(),
-        room_type: String(form.get("room_type") ?? "Standard").trim(), capacity: Number(form.get("capacity") ?? 2),
-        status: String(form.get("status") ?? "available"), nightly_rate_minor: rate ? Math.round(Number(rate) * 100) : null,
-        currency: data.profile?.currency ?? "GHS", floor_label: String(form.get("floor_label") ?? "").trim() || null,
+        organization_id: workspace.id, property_id: property.id, room_type_id: selectedType.id,
+        room_number: String(form.get("room_number") ?? "").trim(), room_type: selectedType.name,
+        capacity: Number(form.get("capacity") ?? selectedType.default_capacity),
+        status: String(form.get("status") ?? "available"), nightly_rate_minor: rate ? Math.round(Number(rate) * 100) : selectedType.default_nightly_rate_minor,
+        currency: property.currency_override ?? data.profile?.currency ?? "GHS",
+        floor_label: String(form.get("floor_label") ?? "").trim() || null,
       });
     } else {
+      const roomId = String(form.get("room_id") ?? "") || null;
+      const selectedRoom = roomId ? data.rooms.find((item) => item.id === roomId) : null;
+      const propertyId = selectedRoom?.property_id || String(form.get("property_id") ?? "");
+      const property = properties.find((item) => item.id === propertyId && item.vertical === "hospitality" && item.status === "active");
+      if (!property || (selectedRoom && selectedRoom.property_id !== property.id)) {
+        setError("Choose an active hospitality property and a room belonging to that property, or leave the room unassigned.");
+        setSaving(false);
+        return;
+      }
       result = await supabase.from("reservations").insert({
-        organization_id: workspace.id, guest_id: String(form.get("guest_id") ?? "") || null,
-        room_id: String(form.get("room_id") ?? "") || null, arrival_date: String(form.get("arrival_date") ?? ""),
+        organization_id: workspace.id, property_id: property.id, guest_id: String(form.get("guest_id") ?? "") || null,
+        room_id: roomId, arrival_date: String(form.get("arrival_date") ?? ""),
         departure_date: String(form.get("departure_date") ?? ""), adults: Number(form.get("adults") ?? 1),
         children: Number(form.get("children") ?? 0), status: "pending", source: "owner_desk",
-        special_requests: String(form.get("special_requests") ?? "").trim(), currency: data.profile?.currency ?? "GHS",
+        special_requests: String(form.get("special_requests") ?? "").trim(),
+        currency: property.currency_override ?? data.profile?.currency ?? "GHS",
       });
     }
     if (result.error) setError(result.error.message);
@@ -232,16 +257,16 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     <main className="main-area">
       <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu /></button><span>Owner Desk</span><ChevronRight size={14} /><b>{active}</b></div><div className="topbar-right"><span className="secure-label"><i /> Secure workspace</span><button className="icon-button" onClick={() => void reload(true)} title="Refresh data" aria-label="Refresh data"><RefreshCw className={refreshing ? "spin" : ""} size={17} /></button><span className="icon-button" aria-hidden="true"><Bell size={18} /></span><div className="topbar-avatar">{initials(workspace.name)}</div></div></header>
       <div className="page-content">
-        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" || active === "Properties" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Properties" && <button className="primary-button" disabled={!propertySchemaReady} onClick={() => setPropertyModal(true)}><Plus size={16} />Add property</button>}{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
+        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" || active === "Properties" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Properties" && <button className="primary-button" disabled={!propertySchemaReady} onClick={() => setPropertyModal(true)}><Plus size={16} />Add property</button>}{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" disabled={!properties.some((p) => p.vertical === "hospitality" && p.status === "active") || !roomTypes.length} title={!properties.some((p) => p.vertical === "hospitality" && p.status === "active") ? "Create an active hospitality property first" : !roomTypes.length ? "Create a room type in Properties first" : "Add room"} onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" disabled={!properties.some((p) => p.vertical === "hospitality" && p.status === "active")} title="An active hospitality property is required" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
         {error && <div className="inline-alert alert-error" role="alert"><CircleHelp size={16} />{error}<button onClick={() => setError("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {notice && <div className="inline-alert alert-success" role="status"><Check size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {loading ? <div className="loading-panel"><span className="loader" />Loading your workspace data…</div> : <>
           {active === "Overview" && <Overview data={data} activeCall={activeCall} occupancy={occupancy} onNavigate={setActive} />}
           {active === "Properties" && <PropertyWorkspace workspaceId={workspace.id} properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} onRefresh={() => reload(true)} />}
           {active === "Calls" && <CallsPage calls={data.calls} />}
-          {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} onStatus={updateStatus} />}
+          {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} />}
-          {active === "Rooms" && <RoomsPage rooms={data.rooms} onStatus={updateStatus} />}
+          {active === "Rooms" && <RoomsPage rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
           {active === "Numbers" && <NumbersPage phones={data.phones} routes={data.routes} receptionists={data.receptionists} />}
           {active === "AI Receptionists" && <ReceptionistsPage instances={data.receptionists} routes={data.routes} phones={data.phones} />}
           {active === "Plans" && <PlansPage plans={data.plans} entitlements={data.entitlements} prices={data.prices} subscription={data.subscription} />}
@@ -250,7 +275,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         <footer className="page-footer"><span>VELLARA OWNER DESK</span><span>Thoughtful hospitality. Clear operations.</span></footer>
       </div>
     </main>
-    {modal && <RecordModal kind={modal} guests={data.guests} rooms={data.rooms} saving={saving} onClose={() => setModal(null)} onSubmit={createRecord} />}
+    {modal && <RecordModal kind={modal} guests={data.guests} rooms={data.rooms} properties={properties} roomTypes={roomTypes} profileCurrency={data.profile?.currency ?? "GHS"} saving={saving} onClose={() => setModal(null)} onSubmit={createRecord} />}
     {propertyModal && <PropertyModal saving={saving} onClose={() => setPropertyModal(false)} onSubmit={createProperty} />}
   </div>;
 }
