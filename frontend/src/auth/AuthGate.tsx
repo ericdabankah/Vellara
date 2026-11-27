@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Building2, LockKeyhole, Mail, UserRound } from "lucide-react";
@@ -13,6 +13,8 @@ type Workspace = {
 
 type RenderProps = {
   workspace: Workspace;
+  workspaces: Workspace[];
+  onWorkspaceChange: (workspaceId: string) => void;
   signOut: () => Promise<void>;
 };
 
@@ -42,6 +44,8 @@ export default function AuthGate({ children }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const selectedWorkspaceId = useRef<string | null>(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -73,7 +77,11 @@ export default function AuthGate({ children }: Props) {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (event === "SIGNED_OUT") setRecoveryMode(false);
       setSession(nextSession);
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") setWorkspace(null);
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        setWorkspace(null);
+        setWorkspaces([]);
+        selectedWorkspaceId.current = null;
+      }
       setErrorMessage("");
     });
 
@@ -121,9 +129,10 @@ export default function AuthGate({ children }: Props) {
     }
 
     const organizations = (organizationResult.data ?? []) as OrganizationRow[];
-    const selectedOrganization = organizations[0];
-    if (!selectedOrganization) {
+    if (organizations.length === 0) {
+      setWorkspaces([]);
       setWorkspace(null);
+      selectedWorkspaceId.current = null;
       setWorkspaceLoading(false);
       return;
     }
@@ -131,8 +140,7 @@ export default function AuthGate({ children }: Props) {
     const businessResult = await supabase
       .from("business_profiles")
       .select("organization_id, business_type, display_name")
-      .eq("organization_id", selectedOrganization.id)
-      .maybeSingle();
+      .in("organization_id", organizations.map((organization) => organization.id));
 
     if (businessResult.error) {
       setErrorMessage(businessResult.error.message);
@@ -140,14 +148,28 @@ export default function AuthGate({ children }: Props) {
       return;
     }
 
-    const business = businessResult.data as BusinessProfileRow | null;
-    const membership = memberships.find((item) => item.organization_id === selectedOrganization.id);
-    setWorkspace({
-      id: selectedOrganization.id,
-      name: business?.display_name || selectedOrganization.name,
-      businessType: business?.business_type || "hotel",
-      role: membership?.role || "member",
-    });
+    const businessByOrganization = new Map(
+      ((businessResult.data ?? []) as BusinessProfileRow[]).map((business) => [business.organization_id, business]),
+    );
+    const membershipByOrganization = new Map(memberships.map((membership) => [membership.organization_id, membership]));
+    const availableWorkspaces = organizations
+      .map((organization) => {
+        const business = businessByOrganization.get(organization.id);
+        const membership = membershipByOrganization.get(organization.id);
+        return {
+          id: organization.id,
+          name: business?.display_name || organization.name,
+          businessType: business?.business_type || "hotel",
+          role: membership?.role || "member",
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    setWorkspaces(availableWorkspaces);
+    const selectedWorkspace = availableWorkspaces.find((item) => item.id === selectedWorkspaceId.current)
+      ?? availableWorkspaces[0];
+    selectedWorkspaceId.current = selectedWorkspace.id;
+    setWorkspace(selectedWorkspace);
     setWorkspaceLoading(false);
   }, [session?.user.id]);
 
@@ -155,6 +177,13 @@ export default function AuthGate({ children }: Props) {
     if (session) void loadWorkspace();
     else setWorkspace(null);
   }, [session, loadWorkspace]);
+
+  function handleWorkspaceChange(workspaceId: string) {
+    const nextWorkspace = workspaces.find((item) => item.id === workspaceId);
+    if (!nextWorkspace) return;
+    selectedWorkspaceId.current = nextWorkspace.id;
+    setWorkspace(nextWorkspace);
+  }
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -338,5 +367,5 @@ export default function AuthGate({ children }: Props) {
     );
   }
 
-  return <>{children({ workspace, signOut })}</>;
+  return <>{children({ workspace, workspaces, onWorkspaceChange: handleWorkspaceChange, signOut })}</>;
 }
