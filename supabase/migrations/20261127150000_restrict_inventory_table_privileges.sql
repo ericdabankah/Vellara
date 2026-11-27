@@ -9,6 +9,10 @@
 revoke all privileges on table
   public.activity_events,
   public.calls,
+  public.organization_modules,
+  public.properties,
+  public.property_staff_assignments,
+  public.room_types,
   public.guests,
   public.organization_phone_numbers,
   public.organization_subscriptions,
@@ -29,6 +33,17 @@ revoke insert, update, delete, truncate, maintain, references, trigger
     public.phone_number_channels,
     public.receptionist_instances,
     public.receptionist_number_routes
+from authenticated;
+
+-- Property-domain tables created by the preceding migration also inherit
+-- broad default grants for authenticated. Keep their approved CRUD/column
+-- grants, but remove operations that are not governed by RLS.
+revoke delete, truncate, maintain, references, trigger
+  on table
+    public.organization_modules,
+    public.properties,
+    public.property_staff_assignments,
+    public.room_types
 from authenticated;
 
 -- These three tables intentionally expose a public catalogue read surface.
