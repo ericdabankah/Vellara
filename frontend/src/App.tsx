@@ -78,9 +78,9 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     const propertyDb = supabase as unknown as SupabaseClient<any>;
     const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
       supabase.from("calls").select("id,status,direction,caller_e164,guest_name,started_at,duration_seconds,outcome,summary").eq("organization_id", workspace.id).order("started_at", { ascending: false }).limit(100),
-      propertyDb.from("reservations").select("id,property_id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
+      supabase.from("reservations").select("id,property_id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
       supabase.from("guests").select("id,full_name,phone_e164,email,notes,source,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(200),
-      propertyDb.from("rooms").select("id,property_id,room_type_id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
+      supabase.from("rooms").select("id,property_id,room_type_id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
       supabase.from("organization_phone_numbers").select("id,phone_e164,label,status,verification_status,phone_number_channels(channel,status)").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       supabase.from("receptionist_number_routes").select("id,phone_number_id,receptionist_instance_id,channel,priority,is_enabled").eq("organization_id", workspace.id).order("priority", { ascending: true }),
       supabase.from("receptionist_instances").select("id,display_name,description,status,language_code,timezone").eq("organization_id", workspace.id).order("created_at", { ascending: true }),
@@ -165,7 +165,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         setSaving(false);
         return;
       }
-      result = await propertyDb.from("rooms").insert({
+      result = await supabase.from("rooms").insert({
         organization_id: workspace.id, property_id: property.id, room_type_id: selectedType.id,
         room_number: String(form.get("room_number") ?? "").trim(), room_type: selectedType.name,
         capacity: Number(form.get("capacity") ?? selectedType.default_capacity),
@@ -183,7 +183,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         setSaving(false);
         return;
       }
-      result = await propertyDb.from("reservations").insert({
+      result = await supabase.from("reservations").insert({
         organization_id: workspace.id, property_id: property.id, guest_id: String(form.get("guest_id") ?? "") || null,
         room_id: roomId, arrival_date: String(form.get("arrival_date") ?? ""),
         departure_date: String(form.get("departure_date") ?? ""), adults: Number(form.get("adults") ?? 1),
