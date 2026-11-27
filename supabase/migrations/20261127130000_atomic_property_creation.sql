@@ -35,7 +35,7 @@ begin
       using errcode = '22023';
   end if;
 
-  if p_vertical not in ('hospitality', 'real_estate') then
+  if p_vertical is null or p_vertical not in ('hospitality', 'real_estate') then
     raise exception 'Unsupported property vertical'
       using errcode = '22023';
   end if;
@@ -74,7 +74,7 @@ begin
 
   -- Both writes execute in this RPC transaction. If property insertion fails,
   -- module enablement is rolled back with it.
-  insert into public.organization_modules (
+  insert into public.organization_modules as existing_module (
     organization_id, module_key, is_enabled, enabled_at, disabled_at
   )
   values (
@@ -83,7 +83,7 @@ begin
   on conflict (organization_id, module_key) do update
     set is_enabled = true,
         enabled_at = case
-          when public.organization_modules.is_enabled then public.organization_modules.enabled_at
+          when existing_module.is_enabled then existing_module.enabled_at
           else now()
         end,
         disabled_at = null,
