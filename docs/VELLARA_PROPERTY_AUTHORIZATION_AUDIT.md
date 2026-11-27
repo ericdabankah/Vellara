@@ -101,7 +101,8 @@ Also test concurrent reservation inserts and existing overlap constraints. Do no
 ## 6. Release blockers and constraints
 
 - Do not apply migrations to production until an isolated replay succeeds and all required authorization tests pass.
-- Ensure the corrected legacy backfill from PR #11 is included in the migration chain before replay. It must fail safely when historical records cannot be mapped uniquely; do not guess a property.
+- The corrected legacy backfill from PR #11 has now been copied into the PR #12 and PR #13 branch heads so the dependent property-creation and inventory stack no longer carries the older mapping logic. It must still be verified by isolated replay, including reuse of existing room types and temporary-table transaction behavior.
+- The source PR #11 remains open as the original correction review. Do not merge duplicate copies independently; review the migration as it appears in the PR #12/PR #13 stack.
 - Verify migration order and dependency branches before merging the stacked PRs.
 - Keep production read-only until explicit approval.
 - Do not put service-role credentials in the browser.
