@@ -247,7 +247,7 @@ where not exists (
 create temporary table vellara_legacy_property_map
 on commit drop
 as
-select property.organization_id, min(property.id) as property_id
+select property.organization_id, max(property.id::text)::uuid as property_id
 from public.properties property
 join (
   select organization_id from public.rooms
