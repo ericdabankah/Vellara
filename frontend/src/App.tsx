@@ -184,23 +184,22 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     const form = new FormData(event.currentTarget);
     const vertical = String(form.get("vertical") ?? "hospitality") as PropertyRow["vertical"];
     const name = String(form.get("name") ?? "").trim();
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "property";
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const propertyDb = supabase as unknown as SupabaseClient<any>;
     setSaving(true); setError(""); setNotice("");
-    const moduleResult = await propertyDb.from("organization_modules").upsert({ organization_id: workspace.id, module_key: vertical, is_enabled: true, disabled_at: null }, { onConflict: "organization_id,module_key" });
-    if (moduleResult.error) {
-      setError(moduleResult.error.message); setSaving(false); return;
-    }
-    const result = await propertyDb.from("properties").insert({
-      organization_id: workspace.id, vertical, name, slug,
-      description: String(form.get("description") ?? "").trim(),
-      city: String(form.get("city") ?? "").trim() || null,
-      region: String(form.get("region") ?? "").trim() || null,
-      timezone_override: String(form.get("timezone_override") ?? "").trim() || null,
-      currency_override: String(form.get("currency_override") ?? "").trim() || null,
-    }).select("id").maybeSingle();
+    const result = await propertyDb.rpc("create_property", {
+      p_organization_id: workspace.id,
+      p_vertical: vertical,
+      p_name: name,
+      p_slug: slug,
+      p_description: String(form.get("description") ?? "").trim(),
+      p_city: String(form.get("city") ?? "").trim() || null,
+      p_region: String(form.get("region") ?? "").trim() || null,
+      p_timezone_override: String(form.get("timezone_override") ?? "").trim() || null,
+      p_currency_override: String(form.get("currency_override") ?? "").trim() || null,
+    });
     if (result.error) setError(result.error.message);
-    else if (!result.data) setError("The property was not created. Check your workspace permissions.");
+    else if (!result.data?.id) setError("The property was not created. The server returned no property record.");
     else { setNotice("Property created. Its currency and timezone inherit your workspace defaults unless overridden."); setPropertyModal(false); await reload(true); }
     setSaving(false);
   }
