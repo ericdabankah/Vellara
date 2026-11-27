@@ -722,6 +722,7 @@ export type Database = {
           guest_id: string | null
           id: string
           organization_id: string
+          property_id: string
           room_id: string | null
           source: string
           special_requests: string
@@ -741,6 +742,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           organization_id: string
+          property_id: string
           room_id?: string | null
           source?: string
           special_requests?: string
@@ -760,6 +762,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           organization_id?: string
+          property_id?: string
           room_id?: string | null
           source?: string
           special_requests?: string
@@ -801,6 +804,8 @@ export type Database = {
           nightly_rate_minor: number | null
           notes: string
           organization_id: string
+          property_id: string
+          room_type_id: string
           room_number: string
           room_type: string
           status: string
@@ -815,6 +820,8 @@ export type Database = {
           nightly_rate_minor?: number | null
           notes?: string
           organization_id: string
+          property_id: string
+          room_type_id: string
           room_number: string
           room_type?: string
           status?: string
@@ -829,6 +836,8 @@ export type Database = {
           nightly_rate_minor?: number | null
           notes?: string
           organization_id?: string
+          property_id?: string
+          room_type_id?: string
           room_number?: string
           room_type?: string
           status?: string
