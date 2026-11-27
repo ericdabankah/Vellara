@@ -3,6 +3,16 @@
 -- belonging to that same property. Composite FKs remain the final integrity
 -- boundary for organization/property/room relationships.
 
+-- These tenant-owned tables have no anonymous/public read surface.
+-- Preserve authenticated column grants and service_role access explicitly.
+revoke all on table
+  public.organization_modules,
+  public.properties,
+  public.property_staff_assignments,
+  public.room_types
+from public, anon;
+
+
 create or replace function private.enforce_hospitality_property()
 returns trigger
 language plpgsql
