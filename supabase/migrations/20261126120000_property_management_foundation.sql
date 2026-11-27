@@ -295,6 +295,13 @@ select room.organization_id, mapping.property_id,
 from public.rooms room
 join vellara_legacy_property_map mapping
   on mapping.organization_id = room.organization_id
+where not exists (
+  select 1
+  from public.room_types existing
+  where existing.organization_id = room.organization_id
+    and existing.property_id = mapping.property_id
+    and lower(existing.name) = lower(btrim(room.room_type))
+)
 group by room.organization_id, mapping.property_id, lower(btrim(room.room_type));
 
 alter table public.rooms
