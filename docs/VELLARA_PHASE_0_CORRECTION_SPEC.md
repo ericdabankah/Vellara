@@ -63,14 +63,14 @@ The slug is also not a reliable identity key:
 - Slug collision with an existing property, including a different vertical, cannot misassign inventory.
 - No room or reservation receives an invented property association.
 
-### P0.2 — Make property onboarding atomic and restore the create-property path
+### P0.2 — Make property onboarding atomic
 
-**Affected files:** property creation flow in `frontend/src/components/PropertyWorkspace.tsx`, property-management migration/RPC layer, Owner Desk navigation.
+**Affected files:** property creation flow in `frontend/src/App.tsx`, property-management migration/RPC layer, and property portfolio UI.
 
-The property creation flow currently enables the organization module and inserts a property as separate writes. A failure between them can leave an enabled module with no property. The current PR #8 portfolio view also has no visible Add Property action, so an empty portfolio has no usable creation path.
+The current PR #8 already exposes an Add Property action in the Owner Desk page heading and includes a property-creation modal in `frontend/src/App.tsx`. The empty portfolio therefore has a creation path; the earlier statement that no Add Property action exists was incorrect. The actual functional defect is that creation enables the organization module and inserts the property as separate writes. A failure between them can leave an enabled module with no property. The empty-state panel may also benefit from its own contextual CTA, but that is a usability enhancement rather than a missing core flow.
 
 **Required correction**
-1. Add a visible, permission-aware Add Property action and empty-state CTA.
+1. Preserve the existing Add Property action, ensure it is permission-aware, and optionally add a contextual CTA inside the empty state.
 2. Implement one transaction-backed database operation that validates the caller and organization role, enables the selected module, creates the property, and ensures the creator's property assignment where applicable.
 3. Return the created property row from the operation.
 4. Enforce allowed vertical/module combinations server-side.
@@ -83,7 +83,7 @@ The property creation flow currently enables the organization module and inserts
 - A failed property insert cannot leave a newly enabled module behind.
 - Repeated submission cannot create accidental duplicate properties.
 - A manager/owner without required authorization is rejected server-side.
-- An empty portfolio offers a working Add Property action.
+- The existing Add Property action remains available when the caller is authorized; an empty-state CTA is optional UX polish.
 - Creator assignment is correct for owners and non-owner creators.
 
 ### P0.3 — Integrate Rooms and Reservations with property scope
@@ -311,7 +311,7 @@ Phase 0 is not complete until all of the following are true:
 ## 7. Execution sequence
 
 1. Correct the migration design and preflight/backfill logic.
-2. Define the atomic property-creation operation and restore the Add Property UI.
+2. Define the atomic property-creation operation and verify the existing Add Property UI and permission gating.
 3. Align room and reservation forms, queries, and writes with property scope.
 4. Verify property-level role policies and add explicit least-privilege grants.
 5. Resolve currency association and lifecycle constraints.
