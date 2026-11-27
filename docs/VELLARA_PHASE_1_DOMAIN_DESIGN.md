@@ -219,3 +219,30 @@ Remaining decisions must be resolved before writing the migration. Room-type sco
 - [ ] Migrations replay and database tests pass in an isolated environment before production rollout.
 
 Until the isolated database path is restored, this proposal is design-only and database acceptance remains unverified.
+
+
+## 11. Reservation lifecycle implementation boundary
+
+The current Owner Desk frontend now offers only these next-step transitions:
+
+| Current state | Available next states |
+| --- | --- |
+| inquiry | pending, canceled |
+| pending | confirmed, inquiry, canceled |
+| confirmed | checked_in, canceled, no_show |
+| checked_in | checked_out |
+| checked_out | none (terminal) |
+| canceled | none (terminal) |
+| no_show | none (terminal) |
+
+This is a **frontend interaction guard**, not an authoritative lifecycle implementation. The client checks the currently loaded reservation state before submitting a change and limits the selector to the listed next states. It does not protect against concurrent updates, direct API calls, stale clients, or malicious requests.
+
+Before this lifecycle can be considered production-safe, the database/authorized backend must:
+- validate every transition atomically against the current persisted state;
+- enforce role and property scope for each transition;
+- write an append-only status-history/audit record with actor, timestamp, prior state, new state, and optional reason;
+- prevent terminal-state revival except through a separately designed, authorized correction workflow;
+- define how an inquiry becomes a pending hold, including hold expiry and concurrency-safe inventory allocation;
+- keep reservation state separate from payment state.
+
+The current UI does not claim that pending reservations have an active inventory hold, that payment has been collected, or that a status change has an immutable audit trail. These remain database/backend acceptance gates.
