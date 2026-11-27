@@ -170,8 +170,49 @@ create unique index room_types_property_name_unique
 create index room_types_property_active_idx
   on public.room_types (organization_id, property_id, is_active, lower(name));
 
--- Create one legacy property only where existing room or reservation records
--- need a parent. This is a data-preservation backfill, not a default catalogue.
+-- Preflight legacy records before creating or assigning any property data.
+-- Never guess when an organization already has multiple hospitality properties.
+do $preflight$
+declare
+  ambiguous_org_count integer;
+  blank_room_type_count bigint;
+begin
+  select count(*) into blank_room_type_count
+  from public.rooms
+  where room_type is null or btrim(room_type) = '';
+
+  if blank_room_type_count > 0 then
+    raise exception
+      'Property migration stopped: % legacy room(s) have a blank room_type. Resolve these explicitly before replay.',
+      blank_room_type_count
+      using errcode = '23514';
+  end if;
+
+  select count(*) into ambiguous_org_count
+  from (
+    select legacy_orgs.organization_id
+    from (
+      select organization_id from public.rooms
+      union
+      select organization_id from public.reservations
+    ) legacy_orgs
+    join public.properties property
+      on property.organization_id = legacy_orgs.organization_id
+     and property.vertical = 'hospitality'
+    group by legacy_orgs.organization_id
+    having count(*) > 1
+  ) ambiguous;
+
+  if ambiguous_org_count > 0 then
+    raise exception
+      'Property migration stopped: % organization(s) have multiple hospitality properties and legacy records cannot be assigned safely.',
+      ambiguous_org_count
+      using errcode = '23514';
+  end if;
+end
+$preflight$;
+
+-- Enable the hospitality module for organizations with legacy inventory.
 insert into public.organization_modules (organization_id, module_key)
 select distinct organization_id, 'hospitality'
 from (
@@ -182,10 +223,12 @@ from (
 on conflict (organization_id, module_key) do update
 set is_enabled = true, disabled_at = null;
 
+-- Create a legacy property only when no hospitality property exists.
+-- The organization UUID suffix avoids colliding with a real property's slug.
 insert into public.properties (organization_id, vertical, name, slug, description)
 select legacy_orgs.organization_id, 'hospitality',
        pg_catalog.left(coalesce(nullif(btrim(profile.display_name), ''), org.name) || ' (Legacy)', 120),
-       'legacy-property',
+       'legacy-property-' || pg_catalog.left(pg_catalog.replace(legacy_orgs.organization_id::text, '-', ''), 8),
        'Automatically created to preserve existing room and reservation history.'
 from (
   select organization_id from public.rooms
@@ -198,41 +241,81 @@ where not exists (
   select 1 from public.properties property
   where property.organization_id = legacy_orgs.organization_id
     and property.vertical = 'hospitality'
-)
-on conflict (organization_id, slug) do nothing;
+);
 
+-- Freeze one unambiguous organization-to-property mapping for this migration.
+create temporary table vellara_legacy_property_map
+on commit drop
+as
+select property.organization_id, max(property.id::text)::uuid as property_id
+from public.properties property
+join (
+  select organization_id from public.rooms
+  union
+  select organization_id from public.reservations
+) legacy_orgs
+  on legacy_orgs.organization_id = property.organization_id
+where property.vertical = 'hospitality'
+group by property.organization_id
+having count(*) = 1;
+
+do $mapping_check$
+declare
+  affected_org_count bigint;
+  mapped_org_count bigint;
+begin
+  select count(*) into affected_org_count
+  from (
+    select organization_id from public.rooms
+    union
+    select organization_id from public.reservations
+  ) legacy_orgs;
+
+  select count(*) into mapped_org_count
+  from vellara_legacy_property_map;
+
+  if affected_org_count <> mapped_org_count then
+    raise exception
+      'Property migration stopped: not every legacy organization has exactly one hospitality property mapping (% of % mapped).',
+      mapped_org_count, affected_org_count
+      using errcode = '23514';
+  end if;
+end
+$mapping_check$;
+
+-- Normalize legacy room types case-insensitively without losing the source text
+-- on rooms. Blank values were rejected in preflight rather than invented.
 insert into public.room_types (
   organization_id, property_id, name, description, default_capacity
 )
-select distinct room.organization_id, property.id,
-       btrim(room.room_type), 'Preserved from the previous room type field.',
+select room.organization_id, mapping.property_id,
+       min(btrim(room.room_type)),
+       'Preserved from the previous room type field.',
        max(room.capacity)::smallint
 from public.rooms room
-join public.properties property
-  on property.organization_id = room.organization_id
- and property.slug = 'legacy-property'
-where btrim(room.room_type) <> ''
-  and not exists (
-    select 1 from public.room_types existing
-    where existing.organization_id = room.organization_id
-      and existing.property_id = property.id
-      and lower(existing.name) = lower(btrim(room.room_type))
-  )
-group by room.organization_id, property.id, btrim(room.room_type);
+join vellara_legacy_property_map mapping
+  on mapping.organization_id = room.organization_id
+where not exists (
+  select 1
+  from public.room_types existing
+  where existing.organization_id = room.organization_id
+    and existing.property_id = mapping.property_id
+    and lower(existing.name) = lower(btrim(room.room_type))
+)
+group by room.organization_id, mapping.property_id, lower(btrim(room.room_type));
 
 alter table public.rooms
   add column property_id uuid,
   add column room_type_id uuid;
 
 update public.rooms room
-set property_id = property.id,
+set property_id = mapping.property_id,
     room_type_id = room_type.id
-from public.properties property
+from vellara_legacy_property_map mapping
 join public.room_types room_type
-  on room_type.organization_id = property.organization_id
- and room_type.property_id = property.id
-where property.organization_id = room.organization_id
-  and property.slug = 'legacy-property'
+  on room_type.organization_id = mapping.organization_id
+ and room_type.property_id = mapping.property_id
+where mapping.organization_id = room.organization_id
   and lower(room_type.name) = lower(btrim(room.room_type));
 
 alter table public.reservations add column property_id uuid;
@@ -242,11 +325,10 @@ from public.rooms room
 where reservation.organization_id = room.organization_id
   and reservation.room_id = room.id;
 update public.reservations reservation
-set property_id = property.id
-from public.properties property
+set property_id = mapping.property_id
+from vellara_legacy_property_map mapping
 where reservation.property_id is null
-  and property.organization_id = reservation.organization_id
-  and property.slug = 'legacy-property';
+  and mapping.organization_id = reservation.organization_id;
 
 -- Existing data is assigned before these columns become mandatory.
 alter table public.rooms alter column property_id set not null;
