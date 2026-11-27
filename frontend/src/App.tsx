@@ -380,9 +380,8 @@ function reservationNextStatuses(status: string): string[] {
 }
 function roomNextStatuses(status: string): string[] {
   const transitions: Record<string, string[]> = {
-    available: ["occupied", "cleaning", "maintenance", "out_of_service"],
-    occupied: ["cleaning", "maintenance", "out_of_service"],
-    cleaning: ["available", "maintenance", "out_of_service"],
+    available: ["occupied", "maintenance", "out_of_service"],
+    occupied: ["available", "maintenance", "out_of_service"],
     maintenance: ["available", "out_of_service"],
     out_of_service: ["available", "maintenance"],
   };
@@ -420,7 +419,7 @@ function GuestsPage({ guests, reservations, rooms, properties }: { guests: Guest
 function RoomsPage({ rooms, properties, onStatus }: { rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
-  const counts = ["available", "occupied", "cleaning", "maintenance", "out_of_service"].map((status) => ({ status, count: rooms.filter((room) => room.status === status).length }));
+  const counts = ["available", "occupied", "maintenance", "out_of_service"].map((status) => ({ status, count: rooms.filter((room) => room.status === status).length }));
   const rows = rooms.filter((room) => {
     const property = properties.find((item) => item.id === room.property_id);
     const matchesQuery = (room.room_number + " " + room.room_type + " " + (property?.name || "")).toLowerCase().includes(query.toLowerCase());
