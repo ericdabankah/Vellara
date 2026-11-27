@@ -246,3 +246,21 @@ Before this lifecycle can be considered production-safe, the database/authorized
 - keep reservation state separate from payment state.
 
 The current UI does not claim that pending reservations have an active inventory hold, that payment has been collected, or that a status change has an immutable audit trail. These remain database/backend acceptance gates.
+
+
+## 12. Operational room management frontend boundary
+
+The Owner Desk room view now provides:
+- Search by room number, room type, and property name.
+- Filters and counts for the existing room status values: `available`, `occupied`, `maintenance`, and `out_of_service`.
+- A constrained next-status selector using this frontend transition map:
+  - available → occupied / maintenance / out_of_service
+  - occupied → available / maintenance / out_of_service
+  - maintenance → available / out_of_service
+  - out_of_service → available / maintenance
+- A clear notice that room operational status is separate from reservation check-in and payment state.
+- A workspace activity timeline backed only by existing `activity_events` rows.
+
+No new room status values were introduced. In particular, a distinct housekeeping/cleaning state is not implemented because the current verified frontend data contract does not establish that value as supported by the existing database constraint. It should be modelled deliberately in a future migration, not written speculatively.
+
+The room transition map is currently a frontend usability guard, not authoritative database enforcement. Before production use, the database/authorized backend must validate room status changes against persisted state, enforce actor/property permissions, and create append-only audit events. The Activity view displays recorded events only; it does not fabricate a timeline entry when an operation has not produced an audit record. Room-to-reservation consistency rules (for example, preventing a room from being marked available while a checked-in stay remains active) also require authoritative enforcement and isolated tests.

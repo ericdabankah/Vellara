@@ -7,7 +7,7 @@ import PropertyWorkspace from "./components/PropertyWorkspace";
 import { supabase } from "./lib/supabase";
 
 type Workspace = { id: string; name: string; businessType: string; role: string };
-type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
+type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Activity" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
 type CallRow = { id: string; status: string; direction: string; caller_e164: string | null; guest_name: string | null; started_at: string; duration_seconds: number | null; outcome: string | null; summary: string };
 type GuestRow = { id: string; full_name: string; phone_e164: string | null; email: string | null; notes: string; source: string; created_at: string };
 type RoomRow = { id: string; property_id: string; room_type_id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
@@ -32,6 +32,7 @@ const nav: { name: Section; icon: ReactNode; group: string }[] = [
   { name: "Reservations", icon: <CalendarDays />, group: "workspace" },
   { name: "Guests", icon: <Users />, group: "workspace" },
   { name: "Rooms", icon: <BedDouble />, group: "workspace" },
+  { name: "Activity", icon: <Activity />, group: "workspace" },
   { name: "Numbers", icon: <MessageSquare />, group: "manage" },
   { name: "AI Receptionists", icon: <Headphones />, group: "manage" },
   { name: "Plans", icon: <CreditCard />, group: "manage" },
@@ -222,9 +223,16 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
         setError("That reservation status change is not allowed. Follow the available next step shown in the reservation ledger.");
         return;
       }
+    } else {
+      const current = data.rooms.find((item) => item.id === id);
+      if (!current) { setError("Room not found in the current workspace. Refresh and try again."); return; }
+      if (!roomNextStatuses(current.status).includes(status)) {
+        setError("That room status change is not allowed. Refresh the room and choose an available next step.");
+        return;
+      }
     }
     const result = await supabase.from(table).update({ status }).eq("organization_id", workspace.id).eq("id", id).select("id").maybeSingle();
-    if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice(table === "reservations" ? "Reservation status updated." : "Room status updated."); await reload(true); }
+    if (result.error) setError(result.error.message); else if (!result.data) setError("This change was not applied. Your workspace role may not have permission."); else { setNotice(table === "reservations" ? "Reservation status updated." : "Room operational status updated."); await reload(true); }
   }
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
@@ -291,6 +299,7 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
           {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} reservations={data.reservations} rooms={data.rooms} properties={properties} /> }
           {active === "Rooms" && <RoomsPage rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
+          {active === "Activity" && <ActivityPage activities={data.activities} />}
           {active === "Numbers" && <NumbersPage phones={data.phones} routes={data.routes} receptionists={data.receptionists} />}
           {active === "AI Receptionists" && <ReceptionistsPage instances={data.receptionists} routes={data.routes} phones={data.phones} />}
           {active === "Plans" && <PlansPage plans={data.plans} entitlements={data.entitlements} prices={data.prices} subscription={data.subscription} />}
@@ -305,11 +314,11 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
 }
 
 function pageTitle(section: Section) {
-  const titles: Record<Section, string> = { Overview: "Your desk, at a glance.", Properties: "Your properties", Calls: "Call activity", Reservations: "Reservations", Guests: "Guest directory", Rooms: "Room management", Numbers: "Connected numbers", "AI Receptionists": "Your AI receptionists", Plans: "Plans & subscription", Settings: "Business settings" };
+  const titles: Record<Section, string> = { Overview: "Your desk, at a glance.", Properties: "Your properties", Calls: "Call activity", Reservations: "Reservations", Guests: "Guest directory", Rooms: "Room management", Activity: "Workspace activity", Numbers: "Connected numbers", "AI Receptionists": "Your AI receptionists", Plans: "Plans & subscription", Settings: "Business settings" };
   return titles[section];
 }
 function pageDescription(section: Section, name: string) {
-  const descriptions: Record<Section, string> = { Overview: "A live view of " + name + " and its guest experience.", Properties: "Manage each location, its operating vertical, and inherited business settings.", Calls: "Review conversations handled by VELLARA.", Reservations: "Track enquiries, upcoming stays, and reservation status.", Guests: "Keep guest contact details and notes in one secure place.", Rooms: "Manage room inventory and availability status.", Numbers: "Manage the phone identities and channels connected to your workspace.", "AI Receptionists": "Configure independent receptionist instances and routing.", Plans: "Understand your subscription, included capacity, and billing status.", Settings: "Keep your business details accurate across the Owner Desk." };
+  const descriptions: Record<Section, string> = { Overview: "A live view of " + name + " and its guest experience.", Properties: "Manage each location, its operating vertical, and inherited business settings.", Calls: "Review conversations handled by VELLARA.", Reservations: "Track enquiries, upcoming stays, and reservation status.", Guests: "Keep guest contact details and notes in one secure place.", Rooms: "Manage room operations and operational status.", Activity: "Review recent events recorded across this workspace.", Numbers: "Manage the phone identities and channels connected to your workspace.", "AI Receptionists": "Configure independent receptionist instances and routing.", Plans: "Understand your subscription, included capacity, and billing status.", Settings: "Keep your business details accurate across the Owner Desk." };
   return descriptions[section];
 }
 function Overview({ data, activeCall, occupancy, onNavigate }: { data: DeskData; activeCall?: CallRow; occupancy: number; onNavigate: (section: Section) => void }) {
@@ -369,6 +378,18 @@ function reservationNextStatuses(status: string): string[] {
   };
   return transitions[status] ?? [];
 }
+function roomNextStatuses(status: string): string[] {
+  const transitions: Record<string, string[]> = {
+    available: ["occupied", "maintenance", "out_of_service"],
+    occupied: ["available", "maintenance", "out_of_service"],
+    maintenance: ["available", "out_of_service"],
+    out_of_service: ["available", "maintenance"],
+  };
+  return transitions[status] ?? [];
+}
+function ActivityPage({ activities }: { activities: ActivityRow[] }) {
+  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Workspace activity</h2><p>Recent activity events recorded for this workspace</p></div><span className="table-meta">{activities.length} recent events</span></div>{activities.length ? <div className="activity-timeline">{activities.map((event) => <article className="activity-timeline-item" key={event.id}><span className="activity-timeline-marker"><Activity size={14} /></span><div><b>{event.summary || event.event_type.replaceAll("_", " ")}</b><small>{event.event_type.replaceAll("_", " ")}</small></div><time>{dateText(event.created_at)} · {timeText(event.created_at)}</time></article>)}</div> : <EmptyState title="No activity recorded yet" description="Workspace events will appear here when supported actions write activity records. This view does not invent events for changes that have no audit record." />}</section>;
+}
 function ReservationsPage({ reservations, guests, rooms, properties, onStatus }: { reservations: ReservationRow[]; guests: GuestRow[]; rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
   const [query, setQuery] = useState("");
   const rows = reservations.filter((r) => {
@@ -396,7 +417,20 @@ function GuestsPage({ guests, reservations, rooms, properties }: { guests: Guest
   </>;
 }
 function RoomsPage({ rooms, properties, onStatus }: { rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
-  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room inventory</h2><p>{rooms.length} room records across your properties</p></div><span className="table-meta">Status updates save immediately</span></div>{rooms.length ? <div className="room-grid">{rooms.map((room) => { const property = properties.find((item) => item.id === room.property_id); return <article className="room-card" key={room.id}><div className="room-card-top"><div className="room-icon"><BedDouble /></div><span className={pill(room.status)}>{room.status.replace("_", " ")}</span></div><h3>Room {room.room_number}</h3><p>{property?.name || "Property unavailable"} · {room.room_type}{room.floor_label ? " · " + room.floor_label : ""}</p><div className="room-meta"><span>{room.capacity} guests</span><b>{cash(room.nightly_rate_minor, room.currency)} <small>/ night</small></b></div><select className="room-status-select" value={room.status} onChange={(event) => void onStatus("rooms", room.id, event.target.value)}><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="out_of_service">Out of service</option></select></article>; })}</div> : <EmptyState title="No rooms added" description="Choose a property, create its room types, then add rooms to that property's inventory." />}</section>;
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const counts = ["available", "occupied", "maintenance", "out_of_service"].map((status) => ({ status, count: rooms.filter((room) => room.status === status).length }));
+  const rows = rooms.filter((room) => {
+    const property = properties.find((item) => item.id === room.property_id);
+    const matchesQuery = (room.room_number + " " + room.room_type + " " + (property?.name || "")).toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (filter === "all" || room.status === filter);
+  });
+  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room operations</h2><p>Track housekeeping and operational availability across your properties.</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search room or property" /></div>
+    <div className="room-status-summary">{counts.map(({status,count}) => <button type="button" key={status} className={filter === status ? "room-status-summary-card selected" : "room-status-summary-card"} onClick={() => setFilter(filter === status ? "all" : status)}><span className={pill(status)}>{status.replaceAll("_"," ")}</span><b>{count}</b></button>)}</div>
+    <div className="room-operations-note"><ShieldCheck size={15}/><p>Room status is an operational label only. Marking a room occupied does not check in a reservation or confirm payment. Reservation and payment states remain separate.</p></div>
+    <div className="room-filter-row"><span>{rows.length} of {rooms.length} rooms</span><button type="button" className="text-button" onClick={() => { setFilter("all"); setQuery(""); }}>Clear filters</button></div>
+    {rows.length ? <div className="room-grid">{rows.map((room) => { const property = properties.find((item) => item.id === room.property_id); const next = roomNextStatuses(room.status); return <article className="room-card" key={room.id}><div className="room-card-top"><div className="room-icon"><BedDouble /></div><span className={pill(room.status)}>{room.status.replaceAll("_", " ")}</span></div><h3>Room {room.room_number}</h3><p>{property?.name || "Property unavailable"} · {room.room_type}{room.floor_label ? " · " + room.floor_label : ""}</p><div className="room-meta"><span>{room.capacity} guests</span><b>{cash(room.nightly_rate_minor, room.currency)} <small>/ night</small></b></div><label className="room-status-control"><span>Next operational status</span><select className="room-status-select" aria-label={"Next operational status for room " + room.room_number} value={room.status} disabled={!next.length} onChange={(event) => void onStatus("rooms", room.id, event.target.value)}><option value={room.status}>{room.status.replaceAll("_"," ")}</option>{next.map((status) => <option key={status} value={status}>{status.replaceAll("_"," ")}</option>)}</select></label></article>; })}</div> : <EmptyState title="No matching rooms" description={rooms.length ? "Try another search or clear the status filter." : "Choose a property, create its room types, then add rooms to that property's inventory."} />}
+  </section>;
 }
 function NumbersPage({ phones, routes, receptionists }: { phones: PhoneRow[]; routes: RouteRow[]; receptionists: ReceptionistRow[] }) {
   return <><section className="capacity-banner"><div className="capacity-banner-icon"><Phone /></div><div><b>One number, multiple channels.</b><p>A verified phone number can power voice and WhatsApp together while consuming one number slot.</p></div><span className="capacity-lock"><ShieldCheck size={15} />Backend verification required</span></section><section className="surface data-surface"><div className="table-toolbar"><div><h2>Connected phone numbers</h2><p>{phones.length} registered number identities</p></div><button className="secondary-button" disabled title="Number verification and subscription enforcement are completed by the backend"><Plus size={15} />Add number</button></div>{phones.length ? <div className="number-list">{phones.map((phone) => <article className="number-row" key={phone.id}><div className="number-icon"><Phone /></div><div className="number-main"><b>{phone.label}</b><span>{phone.phone_e164}</span><div className="channel-tags">{phone.phone_number_channels?.map((channel) => <i key={channel.channel}>{channel.channel === "voice" ? <Phone size={12} /> : <MessageSquare size={12} />}{channel.channel}</i>)}</div><div className="route-tags">{routes.filter((route) => route.phone_number_id === phone.id && route.is_enabled).map((route) => <small key={route.id}>{route.channel} → {receptionists.find((item) => item.id === route.receptionist_instance_id)?.display_name || "Receptionist"}</small>)}</div></div><span className={pill(phone.status)}>{phone.status}</span><span className="verification-state">{phone.verification_status}</span></article>)}</div> : <EmptyState title="No phone numbers connected" description="Connect a number after the backend verification and subscription-capacity flow is ready." />}</section></>;
