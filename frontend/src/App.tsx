@@ -10,9 +10,10 @@ type Workspace = { id: string; name: string; businessType: string; role: string 
 type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
 type CallRow = { id: string; status: string; direction: string; caller_e164: string | null; guest_name: string | null; started_at: string; duration_seconds: number | null; outcome: string | null; summary: string };
 type GuestRow = { id: string; full_name: string; phone_e164: string | null; email: string | null; notes: string; source: string; created_at: string };
-type RoomRow = { id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
+type RoomRow = { id: string; property_id: string; room_type_id: string; room_number: string; room_type: string; capacity: number; status: string; nightly_rate_minor: number | null; currency: string; floor_label: string | null };
+type RoomTypeRow = { id: string; property_id: string; name: string; default_capacity: number; default_nightly_rate_minor: number | null; is_active: boolean; archived_at: string | null };
 type PropertyRow = { id: string; address_line_1?: string | null; vertical: "hospitality" | "real_estate"; name: string; slug: string; description: string; status: string; city: string | null; region: string | null; timezone_override: string | null; currency_override: string | null; created_at: string };
-type ReservationRow = { id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
+type ReservationRow = { id: string; property_id: string; guest_id: string | null; room_id: string | null; confirmation_code: string | null; status: string; source: string; arrival_date: string; departure_date: string; adults: number; children: number; total_amount_minor: number | null; currency: string; special_requests: string; created_at: string };
 type PhoneRow = { id: string; phone_e164: string; label: string; status: string; verification_status: string; phone_number_channels: { channel: string; status: string }[] };
 type ReceptionistRow = { id: string; display_name: string; description: string; status: string; language_code: string; timezone: string };
 type RouteRow = { id: string; phone_number_id: string; receptionist_instance_id: string; channel: string; priority: number; is_enabled: boolean };
@@ -64,6 +65,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<ModalKind>(null);
   const [properties, setProperties] = useState<PropertyRow[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomTypeRow[]>([]);
   const [propertySchemaReady, setPropertySchemaReady] = useState(false);
   const [propertySchemaError, setPropertySchemaError] = useState("");
   const [propertyModal, setPropertyModal] = useState(false);
@@ -76,9 +78,9 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     const propertyDb = supabase as unknown as SupabaseClient<any>;
     const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
       supabase.from("calls").select("id,status,direction,caller_e164,guest_name,started_at,duration_seconds,outcome,summary").eq("organization_id", workspace.id).order("started_at", { ascending: false }).limit(100),
-      supabase.from("reservations").select("id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
+      supabase.from("reservations").select("id,property_id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
       supabase.from("guests").select("id,full_name,phone_e164,email,notes,source,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(200),
-      supabase.from("rooms").select("id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
+      supabase.from("rooms").select("id,property_id,room_type_id,room_number,room_type,capacity,status,nightly_rate_minor,currency,floor_label").eq("organization_id", workspace.id).order("room_number", { ascending: true }).limit(500),
       supabase.from("organization_phone_numbers").select("id,phone_e164,label,status,verification_status,phone_number_channels(channel,status)").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       supabase.from("receptionist_number_routes").select("id,phone_number_id,receptionist_instance_id,channel,priority,is_enabled").eq("organization_id", workspace.id).order("priority", { ascending: true }),
       supabase.from("receptionist_instances").select("id,display_name,description,status,language_code,timezone").eq("organization_id", workspace.id).order("created_at", { ascending: true }),
@@ -94,9 +96,10 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id),
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).eq("status", "occupied"),
     ]);
-    const [propertyRows, moduleRows] = await Promise.all([
+    const [propertyRows, moduleRows, roomTypeRows] = await Promise.all([
       propertyDb.from("properties").select("id,vertical,name,slug,description,status,address_line_1,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
       propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
+      propertyDb.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
     ]);
     if (propertyRows.error || moduleRows.error) {
       setPropertySchemaReady(false);
@@ -106,7 +109,8 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
       setPropertySchemaError("");
       setProperties((propertyRows.data ?? []) as PropertyRow[]);
     }
-    const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error].find(Boolean);
+    if (!roomTypeRows.error) setRoomTypes((roomTypeRows.data ?? []) as RoomTypeRow[]);
+    const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error, roomTypeRows.error].find(Boolean);
     if (failed) setError(failed.message);
     else setData({
       calls: (calls.data ?? []) as CallRow[], reservations: (reservations.data ?? []) as ReservationRow[],
@@ -150,20 +154,41 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         email: String(form.get("email") ?? "").trim() || null, notes: String(form.get("notes") ?? "").trim(), source: "owner_desk",
       });
     } else if (modal === "room") {
+      const propertyId = String(form.get("property_id") ?? "");
+      const roomTypeId = String(form.get("room_type_id") ?? "");
+      const selectedType = roomTypes.find((item) => item.id === roomTypeId && item.property_id === propertyId);
+      const property = properties.find((item) => item.id === propertyId && item.vertical === "hospitality" && item.status === "active");
       const rate = String(form.get("nightly_rate") ?? "").trim();
+      if (!property || !selectedType) {
+        setError("Choose an active hospitality property and one of its active room types.");
+        setSaving(false);
+        return;
+      }
       result = await supabase.from("rooms").insert({
-        organization_id: workspace.id, room_number: String(form.get("room_number") ?? "").trim(),
-        room_type: String(form.get("room_type") ?? "Standard").trim(), capacity: Number(form.get("capacity") ?? 2),
-        status: String(form.get("status") ?? "available"), nightly_rate_minor: rate ? Math.round(Number(rate) * 100) : null,
-        currency: data.profile?.currency ?? "GHS", floor_label: String(form.get("floor_label") ?? "").trim() || null,
+        organization_id: workspace.id, property_id: property.id, room_type_id: selectedType.id,
+        room_number: String(form.get("room_number") ?? "").trim(), room_type: selectedType.name,
+        capacity: Number(form.get("capacity") ?? selectedType.default_capacity),
+        status: String(form.get("status") ?? "available"), nightly_rate_minor: rate ? Math.round(Number(rate) * 100) : selectedType.default_nightly_rate_minor,
+        currency: property.currency_override ?? data.profile?.currency ?? "GHS",
+        floor_label: String(form.get("floor_label") ?? "").trim() || null,
       });
     } else {
+      const roomId = String(form.get("room_id") ?? "") || null;
+      const selectedRoom = roomId ? data.rooms.find((item) => item.id === roomId) : null;
+      const propertyId = selectedRoom?.property_id || String(form.get("property_id") ?? "");
+      const property = properties.find((item) => item.id === propertyId && item.vertical === "hospitality" && item.status === "active");
+      if (!property || (selectedRoom && selectedRoom.property_id !== property.id)) {
+        setError("Choose an active hospitality property and a room belonging to that property, or leave the room unassigned.");
+        setSaving(false);
+        return;
+      }
       result = await supabase.from("reservations").insert({
-        organization_id: workspace.id, guest_id: String(form.get("guest_id") ?? "") || null,
-        room_id: String(form.get("room_id") ?? "") || null, arrival_date: String(form.get("arrival_date") ?? ""),
+        organization_id: workspace.id, property_id: property.id, guest_id: String(form.get("guest_id") ?? "") || null,
+        room_id: roomId, arrival_date: String(form.get("arrival_date") ?? ""),
         departure_date: String(form.get("departure_date") ?? ""), adults: Number(form.get("adults") ?? 1),
-        children: Number(form.get("children") ?? 0), status: "pending", source: "owner_desk",
-        special_requests: String(form.get("special_requests") ?? "").trim(), currency: data.profile?.currency ?? "GHS",
+        children: Number(form.get("children") ?? 0), status: roomId ? "pending" : "inquiry", source: "owner_desk",
+        special_requests: String(form.get("special_requests") ?? "").trim(),
+        currency: property.currency_override ?? data.profile?.currency ?? "GHS",
       });
     }
     if (result.error) setError(result.error.message);
@@ -232,16 +257,16 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     <main className="main-area">
       <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu /></button><span>Owner Desk</span><ChevronRight size={14} /><b>{active}</b></div><div className="topbar-right"><span className="secure-label"><i /> Secure workspace</span><button className="icon-button" onClick={() => void reload(true)} title="Refresh data" aria-label="Refresh data"><RefreshCw className={refreshing ? "spin" : ""} size={17} /></button><span className="icon-button" aria-hidden="true"><Bell size={18} /></span><div className="topbar-avatar">{initials(workspace.name)}</div></div></header>
       <div className="page-content">
-        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" || active === "Properties" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Properties" && <button className="primary-button" disabled={!propertySchemaReady} onClick={() => setPropertyModal(true)}><Plus size={16} />Add property</button>}{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
+        <div className="page-heading"><div><div className="eyebrow">{active === "Overview" || active === "Properties" ? "PROPERTY OPERATIONS" : "OWNER WORKSPACE"}</div><h1>{pageTitle(active)}</h1><p>{pageDescription(active, workspace.name)}</p></div><div className="heading-actions"><span className="today-label"><CalendarDays size={15} />{new Intl.DateTimeFormat("en-GH", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Accra" }).format(new Date())}</span>{active === "Properties" && <button className="primary-button" disabled={!propertySchemaReady} onClick={() => setPropertyModal(true)}><Plus size={16} />Add property</button>}{active === "Guests" && <button className="primary-button" onClick={() => setModal("guest")}><Plus size={16} />Add guest</button>}{active === "Rooms" && <button className="primary-button" disabled={!properties.some((p) => p.vertical === "hospitality" && p.status === "active") || !roomTypes.length} title={!properties.some((p) => p.vertical === "hospitality" && p.status === "active") ? "Create an active hospitality property first" : !roomTypes.length ? "Create a room type in Properties first" : "Add room"} onClick={() => setModal("room")}><Plus size={16} />Add room</button>}{active === "Reservations" && <button className="primary-button" disabled={!properties.some((p) => p.vertical === "hospitality" && p.status === "active")} title="An active hospitality property is required" onClick={() => setModal("reservation")}><Plus size={16} />New reservation</button>}</div></div>
         {error && <div className="inline-alert alert-error" role="alert"><CircleHelp size={16} />{error}<button onClick={() => setError("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {notice && <div className="inline-alert alert-success" role="status"><Check size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
         {loading ? <div className="loading-panel"><span className="loader" />Loading your workspace data…</div> : <>
           {active === "Overview" && <Overview data={data} activeCall={activeCall} occupancy={occupancy} onNavigate={setActive} />}
           {active === "Properties" && <PropertyWorkspace workspaceId={workspace.id} properties={properties} profile={data.profile} schemaReady={propertySchemaReady} schemaError={propertySchemaError} onRefresh={() => reload(true)} />}
           {active === "Calls" && <CallsPage calls={data.calls} />}
-          {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} onStatus={updateStatus} />}
+          {active === "Reservations" && <ReservationsPage reservations={data.reservations} guests={data.guests} rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
           {active === "Guests" && <GuestsPage guests={data.guests} />}
-          {active === "Rooms" && <RoomsPage rooms={data.rooms} onStatus={updateStatus} />}
+          {active === "Rooms" && <RoomsPage rooms={data.rooms} properties={properties} onStatus={updateStatus} />}
           {active === "Numbers" && <NumbersPage phones={data.phones} routes={data.routes} receptionists={data.receptionists} />}
           {active === "AI Receptionists" && <ReceptionistsPage instances={data.receptionists} routes={data.routes} phones={data.phones} />}
           {active === "Plans" && <PlansPage plans={data.plans} entitlements={data.entitlements} prices={data.prices} subscription={data.subscription} />}
@@ -250,7 +275,7 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
         <footer className="page-footer"><span>VELLARA OWNER DESK</span><span>Thoughtful hospitality. Clear operations.</span></footer>
       </div>
     </main>
-    {modal && <RecordModal kind={modal} guests={data.guests} rooms={data.rooms} saving={saving} onClose={() => setModal(null)} onSubmit={createRecord} />}
+    {modal && <RecordModal kind={modal} guests={data.guests} rooms={data.rooms} properties={properties} roomTypes={roomTypes} profileCurrency={data.profile?.currency ?? "GHS"} saving={saving} onClose={() => setModal(null)} onSubmit={createRecord} />}
     {propertyModal && <PropertyModal saving={saving} onClose={() => setPropertyModal(false)} onSubmit={createProperty} />}
   </div>;
 }
@@ -308,18 +333,23 @@ function CallsPage({ calls }: { calls: CallRow[] }) {
   const rows = calls.filter((call) => (call.guest_name || "").toLowerCase().includes(query.toLowerCase()) || (call.caller_e164 || "").includes(query) || call.status.includes(query.toLowerCase()));
   return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Call history</h2><p>Most recent 100 recorded calls</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search calls" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Caller</th><th>Direction</th><th>Date & time</th><th>Duration</th><th>Status</th><th>Outcome</th></tr></thead><tbody>{rows.map((call) => <tr key={call.id}><td><b>{call.guest_name || "Unknown caller"}</b><small>{call.caller_e164 || "Number unavailable"}</small></td><td><span className="direction-cell">{call.direction === "inbound" ? <ArrowDownLeft /> : <ArrowUpRight />}{call.direction}</span></td><td>{dateText(call.started_at)}<small>{timeText(call.started_at)}</small></td><td>{call.duration_seconds == null ? "—" : Math.floor(call.duration_seconds / 60) + "m " + call.duration_seconds % 60 + "s"}</td><td><span className={pill(call.status)}>{call.status.replace("_", " ")}</span></td><td>{call.outcome || "—"}</td></tr>)}</tbody></table></div> : <EmptyState title="No calls recorded" description="Call records appear here when the voice backend sends verified call events." />}</section>;
 }
-function ReservationsPage({ reservations, guests, rooms, onStatus }: { reservations: ReservationRow[]; guests: GuestRow[]; rooms: RoomRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
+function ReservationsPage({ reservations, guests, rooms, properties, onStatus }: { reservations: ReservationRow[]; guests: GuestRow[]; rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
   const [query, setQuery] = useState("");
-  const rows = reservations.filter((r) => { const guest = guests.find((g) => g.id === r.guest_id); const room = rooms.find((item) => item.id === r.room_id); return ((guest?.full_name || "") + " " + (room?.room_number || "") + " " + (r.confirmation_code || "") + " " + r.status).toLowerCase().includes(query.toLowerCase()); });
-  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Reservation ledger</h2><p>Guest stays and booking requests</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search reservations" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Guest</th><th>Room</th><th>Stay</th><th>Guests</th><th>Amount</th><th>Status</th><th>Update</th></tr></thead><tbody>{rows.map((r) => { const guest = guests.find((g) => g.id === r.guest_id); const room = rooms.find((item) => item.id === r.room_id); return <tr key={r.id}><td><b>{guest?.full_name || "Guest enquiry"}</b><small>{r.confirmation_code || "No confirmation code"}</small></td><td>{room?.room_number || "Unassigned"}<small>{room?.room_type || "Room pending"}</small></td><td>{dateText(r.arrival_date)}<small>to {dateText(r.departure_date)}</small></td><td>{r.adults} adults, {r.children} children</td><td>{cash(r.total_amount_minor, r.currency)}</td><td><span className={pill(r.status)}>{r.status.replace("_", " ")}</span></td><td><select className="inline-select" value={r.status} onChange={(event) => void onStatus("reservations", r.id, event.target.value)}><option value="inquiry">Inquiry</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="checked_in">Checked in</option><option value="checked_out">Checked out</option><option value="canceled">Canceled</option><option value="no_show">No show</option></select></td></tr>; })}</tbody></table></div> : <EmptyState title="No reservations yet" description="Create your first reservation or wait for a verified receptionist to add one." />}</section>;
+  const rows = reservations.filter((r) => {
+    const guest = guests.find((g) => g.id === r.guest_id);
+    const room = rooms.find((item) => item.id === r.room_id);
+    const property = properties.find((item) => item.id === r.property_id);
+    return ((guest?.full_name || "") + " " + (room?.room_number || "") + " " + (property?.name || "") + " " + (r.confirmation_code || "") + " " + r.status).toLowerCase().includes(query.toLowerCase());
+  });
+  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Reservation ledger</h2><p>Guest stays and booking requests across your properties</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search reservations" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Property</th><th>Guest</th><th>Room</th><th>Stay</th><th>Guests</th><th>Amount</th><th>Status</th><th>Update</th></tr></thead><tbody>{rows.map((r) => { const guest = guests.find((g) => g.id === r.guest_id); const room = rooms.find((item) => item.id === r.room_id); const property = properties.find((item) => item.id === r.property_id); return <tr key={r.id}><td><b>{property?.name || "Property unavailable"}</b><small>{property?.city || "Hospitality property"}</small></td><td><b>{guest?.full_name || "Guest enquiry"}</b><small>{r.confirmation_code || "No confirmation code"}</small></td><td>{room?.room_number || "Unassigned"}<small>{room?.room_type || "Room pending"}</small></td><td>{dateText(r.arrival_date)}<small>to {dateText(r.departure_date)}</small></td><td>{r.adults} adults, {r.children} children</td><td>{cash(r.total_amount_minor, r.currency)}</td><td><span className={pill(r.status)}>{r.status.replace("_", " ")}</span></td><td><select className="inline-select" value={r.status} onChange={(event) => void onStatus("reservations", r.id, event.target.value)}><option value="inquiry">Inquiry</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="checked_in">Checked in</option><option value="checked_out">Checked out</option><option value="canceled">Canceled</option><option value="no_show">No show</option></select></td></tr>; })}</tbody></table></div> : <EmptyState title="No reservations yet" description="Create a property-specific reservation or an unassigned enquiry for one of your properties." />}</section>;
 }
 function GuestsPage({ guests }: { guests: GuestRow[] }) {
   const [query, setQuery] = useState("");
   const rows = guests.filter((g) => (g.full_name + " " + (g.phone_e164 || "") + " " + (g.email || "")).toLowerCase().includes(query.toLowerCase()));
   return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Guest directory</h2><p>Guest records belonging to this workspace</p></div><SearchInput value={query} onChange={setQuery} placeholder="Search guests" /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Guest</th><th>Phone</th><th>Email</th><th>Source</th><th>Added</th></tr></thead><tbody>{rows.map((g) => <tr key={g.id}><td><div className="guest-cell"><span>{initials(g.full_name)}</span><b>{g.full_name}</b></div></td><td>{g.phone_e164 || "—"}</td><td>{g.email || "—"}</td><td><span className="source-label">{g.source.replace("_", " ")}</span></td><td>{dateText(g.created_at)}</td></tr>)}</tbody></table></div> : <EmptyState title="Your guest book is empty" description="Add a guest record or let VELLARA create one from a verified guest interaction." />}</section>;
 }
-function RoomsPage({ rooms, onStatus }: { rooms: RoomRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
-  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room inventory</h2><p>{rooms.length} room records in this workspace</p></div><span className="table-meta">Status updates save immediately</span></div>{rooms.length ? <div className="room-grid">{rooms.map((room) => <article className="room-card" key={room.id}><div className="room-card-top"><div className="room-icon"><BedDouble /></div><span className={pill(room.status)}>{room.status.replace("_", " ")}</span></div><h3>Room {room.room_number}</h3><p>{room.room_type}{room.floor_label ? " · " + room.floor_label : ""}</p><div className="room-meta"><span>{room.capacity} guests</span><b>{cash(room.nightly_rate_minor, room.currency)} <small>/ night</small></b></div><select className="room-status-select" value={room.status} onChange={(event) => void onStatus("rooms", room.id, event.target.value)}><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="out_of_service">Out of service</option></select></article>)}</div> : <EmptyState title="No rooms added" description="Add your property's room inventory to start tracking occupancy." />}</section>;
+function RoomsPage({ rooms, properties, onStatus }: { rooms: RoomRow[]; properties: PropertyRow[]; onStatus: (table: "rooms" | "reservations", id: string, status: string) => Promise<void> }) {
+  return <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room inventory</h2><p>{rooms.length} room records across your properties</p></div><span className="table-meta">Status updates save immediately</span></div>{rooms.length ? <div className="room-grid">{rooms.map((room) => { const property = properties.find((item) => item.id === room.property_id); return <article className="room-card" key={room.id}><div className="room-card-top"><div className="room-icon"><BedDouble /></div><span className={pill(room.status)}>{room.status.replace("_", " ")}</span></div><h3>Room {room.room_number}</h3><p>{property?.name || "Property unavailable"} · {room.room_type}{room.floor_label ? " · " + room.floor_label : ""}</p><div className="room-meta"><span>{room.capacity} guests</span><b>{cash(room.nightly_rate_minor, room.currency)} <small>/ night</small></b></div><select className="room-status-select" value={room.status} onChange={(event) => void onStatus("rooms", room.id, event.target.value)}><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="out_of_service">Out of service</option></select></article>; })}</div> : <EmptyState title="No rooms added" description="Choose a property, create its room types, then add rooms to that property's inventory." />}</section>;
 }
 function NumbersPage({ phones, routes, receptionists }: { phones: PhoneRow[]; routes: RouteRow[]; receptionists: ReceptionistRow[] }) {
   return <><section className="capacity-banner"><div className="capacity-banner-icon"><Phone /></div><div><b>One number, multiple channels.</b><p>A verified phone number can power voice and WhatsApp together while consuming one number slot.</p></div><span className="capacity-lock"><ShieldCheck size={15} />Backend verification required</span></section><section className="surface data-surface"><div className="table-toolbar"><div><h2>Connected phone numbers</h2><p>{phones.length} registered number identities</p></div><button className="secondary-button" disabled title="Number verification and subscription enforcement are completed by the backend"><Plus size={15} />Add number</button></div>{phones.length ? <div className="number-list">{phones.map((phone) => <article className="number-row" key={phone.id}><div className="number-icon"><Phone /></div><div className="number-main"><b>{phone.label}</b><span>{phone.phone_e164}</span><div className="channel-tags">{phone.phone_number_channels?.map((channel) => <i key={channel.channel}>{channel.channel === "voice" ? <Phone size={12} /> : <MessageSquare size={12} />}{channel.channel}</i>)}</div><div className="route-tags">{routes.filter((route) => route.phone_number_id === phone.id && route.is_enabled).map((route) => <small key={route.id}>{route.channel} → {receptionists.find((item) => item.id === route.receptionist_instance_id)?.display_name || "Receptionist"}</small>)}</div></div><span className={pill(phone.status)}>{phone.status}</span><span className="verification-state">{phone.verification_status}</span></article>)}</div> : <EmptyState title="No phone numbers connected" description="Connect a number after the backend verification and subscription-capacity flow is ready." />}</section></>;
@@ -341,13 +371,46 @@ function SettingsPage({ profile, saving, onSubmit }: { profile: BusinessProfile 
   return <form className="surface settings-form" onSubmit={onSubmit}><div className="settings-section-heading"><div><h2>Business profile</h2><p>These details identify your property across the Owner Desk.</p></div><span className="settings-readonly"><ShieldCheck size={14} />Owner / manager access</span></div><div className="form-grid"><Field label="Business display name"><input name="display_name" defaultValue={profile.display_name} required minLength={2} maxLength={120} /></Field><Field label="Business type"><select name="business_type" defaultValue={profile.business_type}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></Field><Field label="Legal business name"><input name="legal_name" defaultValue={profile.legal_name || ""} /></Field><Field label="Contact email"><input name="contact_email" type="email" defaultValue={profile.contact_email || ""} /></Field><Field label="Contact phone (E.164)"><input name="contact_phone_e164" defaultValue={profile.contact_phone_e164 || ""} placeholder="+233..." pattern="^\+[1-9][0-9]{7,14}$" /></Field><Field label="Website"><input name="website_url" type="url" defaultValue={profile.website_url || ""} placeholder="https://" /></Field><Field label="Address"><input name="address_line_1" defaultValue={profile.address_line_1 || ""} /></Field><Field label="City"><input name="city" defaultValue={profile.city || ""} /></Field><Field label="Region"><input name="region" defaultValue={profile.region || ""} /></Field><Field label="Business description" wide><textarea name="description" rows={4} defaultValue={profile.description || ""} /></Field></div><div className="settings-footer"><div><small>Timezone: {profile.timezone} · Currency: {profile.currency}</small><small>Managed by workspace configuration.</small></div><button className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button></div></form>;
 }
 function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) { return <label className={wide ? "field field-wide" : "field"}><span>{label}</span>{children}</label>; }
-function RecordModal({ kind, guests, rooms, saving, onClose, onSubmit }: { kind: Exclude<ModalKind, null>; guests: GuestRow[]; rooms: RoomRow[]; saving: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+function RecordModal({ kind, guests, rooms, properties, roomTypes, profileCurrency, saving, onClose, onSubmit }: { kind: Exclude<ModalKind, null>; guests: GuestRow[]; rooms: RoomRow[]; properties: PropertyRow[]; roomTypes: RoomTypeRow[]; profileCurrency: string; saving: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const title = kind === "guest" ? "Add a guest" : kind === "room" ? "Add a room" : "Create reservation";
+  const hospitalityProperties = properties.filter((property) => property.vertical === "hospitality" && property.status === "active");
+  const [selectedPropertyId, setSelectedPropertyId] = useState(hospitalityProperties[0]?.id ?? "");
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState(roomTypes.find((type) => type.property_id === (hospitalityProperties[0]?.id ?? ""))?.id ?? "");
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const selectedProperty = hospitalityProperties.find((property) => property.id === selectedPropertyId);
+  const availableRoomTypes = roomTypes.filter((type) => type.property_id === selectedPropertyId && type.is_active && !type.archived_at);
+  const selectedRoomType = availableRoomTypes.find((type) => type.id === selectedRoomTypeId);
+  const availableRooms = rooms.filter((room) => room.property_id === selectedPropertyId && room.status === "available");
+  const currency = selectedProperty?.currency_override ?? profileCurrency;
+  const noProperties = hospitalityProperties.length === 0;
+  const noRoomTypes = kind === "room" && availableRoomTypes.length === 0;
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><form className="modal-card" onSubmit={onSubmit}><div className="modal-heading"><div><span className="eyebrow">OWNER DESK</span><h2>{title}</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Close dialog"><X /></button></div>
     {kind === "guest" && <div className="form-grid"><Field label="Full name"><input name="full_name" required minLength={2} maxLength={160} autoFocus /></Field><Field label="Phone number (E.164)"><input name="phone_e164" placeholder="+233..." pattern="^\+[1-9][0-9]{7,14}$" /></Field><Field label="Email address"><input name="email" type="email" /></Field><Field label="Notes" wide><textarea name="notes" rows={3} /></Field></div>}
-    {kind === "room" && <div className="form-grid"><Field label="Room number"><input name="room_number" required maxLength={32} autoFocus /></Field><Field label="Room type"><input name="room_type" defaultValue="Standard" required /></Field><Field label="Guest capacity"><input name="capacity" type="number" min="1" max="30" defaultValue="2" required /></Field><Field label="Floor / wing"><input name="floor_label" /></Field><Field label="Nightly rate (GHS)"><input name="nightly_rate" type="number" min="0" step="0.01" /></Field><Field label="Initial status"><select name="status" defaultValue="available"><option value="available">Available</option><option value="maintenance">Maintenance</option><option value="out_of_service">Out of service</option></select></Field></div>}
-    {kind === "reservation" && <div className="form-grid"><Field label="Guest"><select name="guest_id" defaultValue=""><option value="">Guest not assigned</option>{guests.map((g) => <option key={g.id} value={g.id}>{g.full_name}</option>)}</select></Field><Field label="Room"><select name="room_id" defaultValue=""><option value="">Room not assigned</option>{rooms.filter((r) => r.status === "available").map((r) => <option key={r.id} value={r.id}>{r.room_number} · {r.room_type}</option>)}</select></Field><Field label="Arrival date"><input name="arrival_date" type="date" required /></Field><Field label="Departure date"><input name="departure_date" type="date" required /></Field><Field label="Adults"><input name="adults" type="number" min="1" max="30" defaultValue="1" required /></Field><Field label="Children"><input name="children" type="number" min="0" max="30" defaultValue="0" required /></Field><Field label="Special requests" wide><textarea name="special_requests" rows={3} /></Field></div>}
-    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving ? "Saving…" : kind === "reservation" ? "Create reservation" : kind === "guest" ? "Add guest" : "Add room"}</button></div>
+    {kind === "room" && <div className="form-grid">
+      {noProperties ? <div className="field field-wide"><span>No active hospitality property is available. Create or activate a property before adding rooms.</span></div> : <>
+        <Field label="Property"><select name="property_id" required value={selectedPropertyId} onChange={(event) => { const next = event.target.value; setSelectedPropertyId(next); setSelectedRoomTypeId(roomTypes.find((type) => type.property_id === next && type.is_active && !type.archived_at)?.id ?? ""); }}><option value="">Choose a property</option>{hospitalityProperties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></Field>
+        <Field label="Room type"><select name="room_type_id" required value={selectedRoomTypeId} onChange={(event) => setSelectedRoomTypeId(event.target.value)}><option value="">Choose a room type</option>{availableRoomTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select></Field>
+        {noRoomTypes && <div className="field field-wide"><span>This property has no active room types yet. Add a room type in Properties before creating its rooms.</span></div>}
+        <Field label="Room number"><input name="room_number" required maxLength={32} autoFocus /></Field>
+        <Field label="Guest capacity"><input key={selectedRoomType?.id || selectedPropertyId} name="capacity" type="number" min="1" max="30" defaultValue={selectedRoomType?.default_capacity ?? 2} required /></Field>
+        <Field label="Floor / wing"><input name="floor_label" /></Field>
+        <Field label={"Nightly rate (" + currency + ")"}><input key={"rate-" + (selectedRoomType?.id || selectedPropertyId)} name="nightly_rate" type="number" min="0" step="0.01" defaultValue={selectedRoomType?.default_nightly_rate_minor == null ? "" : (selectedRoomType.default_nightly_rate_minor / 100).toFixed(2)} placeholder="Use room-type default" /></Field>
+        <Field label="Initial status"><select name="status" defaultValue="available"><option value="available">Available</option><option value="maintenance">Maintenance</option><option value="out_of_service">Out of service</option></select></Field>
+      </>}
+    </div>}
+    {kind === "reservation" && <div className="form-grid">
+      {noProperties ? <div className="field field-wide"><span>No active hospitality property is available. Create or activate a property before recording a reservation or enquiry.</span></div> : <>
+        <Field label="Property"><select name="property_id" required value={selectedPropertyId} onChange={(event) => { setSelectedPropertyId(event.target.value); setSelectedRoomId(""); }}><option value="">Choose a property</option>{hospitalityProperties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></Field>
+        <Field label="Guest"><select name="guest_id" defaultValue=""><option value="">Guest not assigned</option>{guests.map((guest) => <option key={guest.id} value={guest.id}>{guest.full_name}</option>)}</select></Field>
+        <Field label="Room"><select name="room_id" value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)}><option value="">Unassigned enquiry / room pending</option>{availableRooms.map((room) => <option key={room.id} value={room.id}>{room.room_number} · {room.room_type}</option>)}</select></Field>
+        <Field label="Arrival date"><input name="arrival_date" type="date" required /></Field>
+        <Field label="Departure date"><input name="departure_date" type="date" required /></Field>
+        <Field label="Adults"><input name="adults" type="number" min="1" max="30" defaultValue="1" required /></Field>
+        <Field label="Children"><input name="children" type="number" min="0" max="30" defaultValue="0" /></Field>
+        <Field label="Special requests" wide><textarea name="special_requests" rows={3} /></Field>
+      </>}
+    </div>}
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving || ((kind === "room" || kind === "reservation") && noProperties) || (kind === "room" && noRoomTypes)}>{saving ? "Saving…" : kind === "reservation" ? "Create reservation" : kind === "guest" ? "Add guest" : "Add room"}</button></div>
   </form></div>;
 }
 function EmptyState({ title, description }: { title: string; description: string }) { return <div className="empty-state table-empty"><div className="empty-icon"><CircleHelp /></div><h3>{title}</h3><p>{description}</p></div>; }
