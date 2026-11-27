@@ -77,6 +77,7 @@ export default function AuthGate({ children }: Props) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       authEventVersion += 1;
+      setAuthLoading(false);
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (event === "SIGNED_OUT") setRecoveryMode(false);
       setSession(nextSession);
