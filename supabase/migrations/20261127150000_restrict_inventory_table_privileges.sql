@@ -20,7 +20,7 @@ revoke all privileges on table
 from public, anon;
 
 -- Read-only tenant tables: authenticated users need SELECT only.
-revoke insert, update, delete, truncate, references, trigger
+revoke insert, update, delete, truncate, maintain, references, trigger
   on table
     public.activity_events,
     public.calls,
@@ -45,7 +45,7 @@ grant select on table
   public.subscription_prices
 to anon, authenticated;
 
-revoke insert, update, delete, truncate, references, trigger
+revoke insert, update, delete, truncate, maintain, references, trigger
   on table
     public.subscription_plan_entitlements,
     public.subscription_plans,
@@ -55,6 +55,6 @@ from authenticated;
 -- Authenticated users may create/update guests, rooms, and reservations only
 -- through their existing RLS policies and explicitly granted update columns.
 -- RLS cannot constrain DELETE/TRUNCATE/REFERENCES/TRIGGER privileges.
-revoke delete, truncate, references, trigger
+revoke delete, truncate, maintain, references, trigger
   on table public.guests, public.reservations, public.rooms
 from authenticated;
