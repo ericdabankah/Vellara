@@ -147,7 +147,6 @@ function OwnerDesk({ workspace, signOut }: { workspace: Workspace; signOut: () =
     const form = new FormData(event.currentTarget);
     setSaving(true); setError(""); setNotice("");
     let result: { error: { message: string } | null };
-    const propertyDb = supabase as unknown as SupabaseClient<any>;
     if (modal === "guest") {
       result = await supabase.from("guests").insert({
         organization_id: workspace.id, full_name: String(form.get("full_name") ?? "").trim(),
