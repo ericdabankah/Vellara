@@ -79,7 +79,7 @@ These tests must be run after replaying the complete migration chain, including 
 | INV-03 | Insert room whose room type belongs to another property | Rejected by trigger/composite FK |
 | INV-04 | Insert reservation whose room belongs to another property | Rejected by composite FK |
 | INV-05 | Insert unassigned enquiry with a valid property | Allowed if all other reservation constraints pass |
-| INV-06 | Insert unassigned enquiry without property | Rejected by NOT NULL/FK |
+| INV-06 | Insert unassigned enquiry without property | Rejected by NOT NULL/FK |\n| INV-07 | Legacy rooms contain room numbers that collide after lower/trim normalization | Migration preflight aborts with an actionable collision count before adding the normalized unique index |
 | GRANT-01 | Anonymous role accesses tenant-owned operational tables | Denied |
 | GRANT-02 | Authenticated role attempts DELETE/TRUNCATE/MAINTAIN/REFERENCES/TRIGGER on tenant-owned tables | Denied |
 | GRANT-03 | Authenticated role writes to read-only tenant tables | Denied at SQL privilege layer |
@@ -109,7 +109,7 @@ The connected Supabase project was queried read-only while reviewing the propose
 - `organization_memberships` has the required unique constraint on `(organization_id, user_id)`, so the proposed composite foreign key from property staff assignments has a valid referenced key.
 - Authenticated users can read organization memberships under the existing self-or-admin policy; this supports the owner-only staff-assignment insert check without granting membership writes.
 - The legacy `rooms` and `reservations` tables each currently contain zero rows. This reduces the amount of legacy data to backfill, but does not prove that the migration is safe for populated customer databases.
-- The property tables remain absent from the connected database. No schema changes or data writes were performed.
+- The property tables remain absent from the connected database. No schema changes or data writes were performed.\n- Static review identified that the new case-insensitive, whitespace-normalized room-number index could otherwise fail on legacy values such as `101` and ` 101 `. The migration now detects these collisions in preflight and stops with an explicit remediation message. This is a static code correction, not a replay test.
 
 These checks establish prerequisites only. They do not execute the proposed DDL, prove migration replay, or test behavior under authenticated JWT claims.
 
