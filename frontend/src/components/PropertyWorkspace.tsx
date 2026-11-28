@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { Archive, BedDouble, Check, ChevronLeft, CircleHelp, Edit3, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -72,8 +71,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     if (!supabase || !propertyId) return;
     setLoadingTypes(true);
     setError("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("room_types")
+    const result = await supabase.from("room_types")
       .select("id,organization_id,property_id,name,description,default_capacity,bed_configuration,amenities,default_nightly_rate_minor,is_active,archived_at")
       .eq("organization_id", workspaceId).eq("property_id", propertyId)
       .order("name", { ascending: true });
@@ -99,8 +97,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     if (!supabase || !selected) return;
     const form = new FormData(event.currentTarget);
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("properties").update({
+    const result = await supabase.from("properties").update({
       name: String(form.get("name") ?? "").trim(),
       slug: String(form.get("slug") ?? "").trim().toLowerCase(),
       description: String(form.get("description") ?? "").trim(),
@@ -137,10 +134,9 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
       default_nightly_rate_minor: rateText ? Math.round(Number(rateText) * 100) : null,
     };
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
     const result = editingType
-      ? await db.from("room_types").update(fields).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
-      : await db.from("room_types").insert({ ...fields, organization_id: workspaceId, property_id: selected.id }).select("id").maybeSingle();
+      ? await supabase.from("room_types").update(fields).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
+      : await supabase.from("room_types").insert({ ...fields, organization_id: workspaceId, property_id: selected.id }).select("id").maybeSingle();
     if (result.error) setError(result.error.message);
     else if (!result.data) setError("The room type was not saved. Check your property access.");
     else {
@@ -155,8 +151,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     if (!supabase || !selected) return;
     if (!window.confirm("Archive “" + type.name + "”? Existing rooms will keep their history, but this type will no longer be available for new rooms.")) return;
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("room_types").update({ is_active: false, archived_at: new Date().toISOString() })
+    const result = await supabase.from("room_types").update({ is_active: false, archived_at: new Date().toISOString() })
       .eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", type.id).select("id").maybeSingle();
     if (result.error) setError(result.error.message);
     else if (!result.data) setError("The room type was not archived. Check your property access.");
