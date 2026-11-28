@@ -32,7 +32,7 @@ The `staging` branch is the shared integration environment for production-bound 
 
 The current Pages preview configuration was previously supplied with the VELLARA Supabase URL and public publishable key. These are browser-visible credentials, but they connect the preview to the existing Supabase project. Before enabling authenticated staging workflows or testing writes, create/use a separate Supabase staging project and configure the Pages preview environment with that project's URL and publishable key. Do not point staging at production data for test operations.
 
-Until a separate staging Supabase project exists, use `/preview` for visual inspection only. Do not sign in to the staging preview to test real tenant operations.
+Until a separate staging Supabase project exists, use `/preview` for visual inspection only. Cloudflare Pages preview environment variables are intentionally unset so the staging preview cannot authenticate against the existing Supabase project. Do not sign in to the staging preview to test real tenant operations.
 
 ## Current bootstrap limitation
 
