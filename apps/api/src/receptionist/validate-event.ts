@@ -99,11 +99,23 @@ export function validateProviderEventCandidate(
   }
 
   const occurredAt = requiredString(input.occurredAt, "occurredAt", 40);
-  if (
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(occurredAt) ||
-    !Number.isFinite(Date.parse(occurredAt))
-  ) {
+  const timestampPattern =
+    /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+  const timestampParts = occurredAt.match(timestampPattern);
+  const parsedTimestamp = Date.parse(occurredAt);
+  if (!timestampParts || !Number.isFinite(parsedTimestamp)) {
     throw new InvalidProviderEventError("occurredAt must be an ISO-8601 timestamp with an explicit timezone.");
+  }
+  const year = Number(timestampParts[1]);
+  const month = Number(timestampParts[2]);
+  const day = Number(timestampParts[3]);
+  const daysInMonth = [
+    31,
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+    31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  ];
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) {
+    throw new InvalidProviderEventError("occurredAt contains an invalid calendar date.");
   }
 
   const direction = requiredString(input.direction, "direction", 20);
