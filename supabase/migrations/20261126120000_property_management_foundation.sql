@@ -243,6 +243,10 @@ where not exists (
     and property.vertical = 'hospitality'
 );
 
+-- Clean up a leftover temp table if a prior non-transactional replay failed
+-- after creating it on this same migration connection.
+drop table if exists pg_temp.vellara_legacy_property_map;
+
 -- Freeze one unambiguous organization-to-property mapping for this migration.
 -- Do not depend on the migration runner wrapping this file in one transaction.
 -- Keep the mapping for this migration session and explicitly drop it after the backfill.
