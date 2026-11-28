@@ -71,6 +71,30 @@ Cancellation must be explicit and idempotent. If a customer cancels at period en
 - Preserve a minimal audit trail: internal billing attempt, provider reference, amount/currency, channel, normalized status, event ID, timestamps, and safe failure codes. Do not store full card data, PINs, OTPs, or unnecessary raw payloads.
 - Reconcile organization_subscriptions, payment attempts, and provider events before any schema change. Existing schema names are not proof that all required fields or transitions exist.
 
+
+
+### Read-only Supabase schema review (2026-11-28)
+
+The live VELLARA project was inspected with read-only SQL. No data was changed.
+
+Existing billing foundations:
+
+- subscription_plans contains plan codes constrained to starter, growth, premium, and enterprise. Plan listing and purchase availability are separate flags.
+- subscription_prices already supports GHS, monthly/yearly intervals, integer amount_minor (pesewas), provider values including paystack, and provider_price_ref. A partial unique index permits one active price per plan/currency/interval/provider.
+- organization_subscriptions already stores plan_id, price_id, status, billing_provider, provider_customer_ref, provider_subscription_ref, current billing period, cancellation fields, and plan entitlements. Its allowed statuses include incomplete, pending, trialing, active, past_due, paused, canceled, and expired. It has a partial unique index allowing one current subscription per organization and a unique provider subscription reference when present.
+- subscription_provider_events already supports Paystack and has a unique (provider, provider_event_id) constraint, event type, optional organization_id, JSON object payload, received/processed timestamps, and received/processing/processed/failed/ignored states. This is the correct existing inbox for billing-provider events, subject to safe server-side insertion and processing.
+
+Important gaps and guardrails:
+
+- No dedicated payment-attempt/transaction table appeared in the schema inventory. A durable internal billing attempt with a unique VELLARA reference, expected amount/currency, organization, price, payment channel, and state is still required unless an existing table outside the billing-name inventory is proven suitable.
+- subscription_provider_events is an event inbox, not a payment ledger. It cannot replace payment attempts or verified payment records.
+- RLS policies currently permit organization members to SELECT their own organization_subscriptions; listed subscription plans and active prices are readable by anon/authenticated clients; subscription_provider_events denies all anon/authenticated client operations. No client-side write path should be added.
+- The subscription tables have no direct client write policy. The trusted server-side billing path therefore needs an explicitly designed, least-privilege database write mechanism. Do not casually bypass this with a broad service-role credential or a generic public RPC. Reconcile this with the existing Worker security contract before implementing webhook writes.
+- The database currently supports monthly/yearly price intervals only. Keep the first implementation to those intervals unless a separately reviewed migration expands it.
+- The existing provider constraints already include paystack, so no provider-enum migration is indicated by this inspection.
+
+These findings are schema observations, not proof that billing workflows are implemented or secure end-to-end. RLS/grants, trigger behaviour, and the server-only write path still require a focused audit and isolated testing before runtime changes.
+
 ## Security and operational requirements
 
 - Keep Paystack secret keys and webhook signing secrets in Cloudflare Worker secret bindings, separately for test and live environments. No secrets in Git, frontend bundles, logs, or Supabase client configuration.
@@ -99,4 +123,4 @@ Cancellation must be explicit and idempotent. If a customer cancels at period en
 
 ## Current implementation status
 
-Design only. No Paystack merchant account, API key, signing secret, live plan, checkout route, webhook route, database migration, production write, or payout account has been configured or created. The next implementation step is a read-only schema review of the existing billing tables, followed by a test-mode server implementation and tests. Live activation requires explicit approval.
+Design and read-only schema review only. No Paystack merchant account, API key, signing secret, live plan, checkout route, webhook route, database migration, production write, or payout account has been configured or created. The next implementation step is to resolve the trusted server-only database write path and durable payment-attempt model, then build and test against Paystack test mode. Live activation requires explicit approval.
