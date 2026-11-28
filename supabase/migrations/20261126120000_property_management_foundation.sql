@@ -188,6 +188,23 @@ begin
       using errcode = '23514';
   end if;
 
+  -- The property-scoped unique index normalizes room numbers. Detect legacy
+  -- collisions before adding it so operators get a clear remediation message.
+  select count(*) into ambiguous_org_count
+  from (
+    select organization_id, lower(btrim(room_number))
+    from public.rooms
+    group by organization_id, lower(btrim(room_number))
+    having count(*) > 1
+  ) duplicate_room_numbers;
+
+  if ambiguous_org_count > 0 then
+    raise exception
+      'Property migration stopped: % organization/room-number groups collide after case and whitespace normalization. Resolve these explicitly before replay.',
+      ambiguous_org_count
+      using errcode = '23514';
+  end if;
+
   select count(*) into ambiguous_org_count
   from (
     select legacy_orgs.organization_id
