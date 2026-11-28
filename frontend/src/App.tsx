@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 import AuthGate from "./auth/AuthGate";
 import PropertyWorkspace from "./components/PropertyWorkspace";
+import PhoneInput from "./components/PhoneInput";
 import { supabase } from "./lib/supabase";
 
 type Workspace = { id: string; name: string; businessType: string; role: string };
