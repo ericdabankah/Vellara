@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Archive, BedDouble, Check, ChevronLeft, CircleHelp, Edit3, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -60,6 +60,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   const [editingProperty, setEditingProperty] = useState(false);
   const [editingType, setEditingType] = useState<RoomType | null>(null);
   const [addingType, setAddingType] = useState(false);
+  const roomTypeRequest = useRef(0);
 
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const hospitality = properties.filter((property) => property.vertical === "hospitality");
@@ -69,14 +70,20 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
 
   async function loadRoomTypes(propertyId: string) {
     if (!supabase || !propertyId) return;
+    const requestId = ++roomTypeRequest.current;
     setLoadingTypes(true);
     setError("");
     const result = await supabase.from("room_types")
       .select("id,organization_id,property_id,name,description,default_capacity,bed_configuration,amenities,default_nightly_rate_minor,is_active,archived_at")
       .eq("organization_id", workspaceId).eq("property_id", propertyId)
       .order("name", { ascending: true });
-    if (result.error) setError(result.error.message);
-    else setRoomTypes((result.data ?? []) as RoomType[]);
+    if (requestId !== roomTypeRequest.current) return;
+    if (result.error) {
+      setRoomTypes([]);
+      setError(result.error.message);
+    } else {
+      setRoomTypes((result.data ?? []) as RoomType[]);
+    }
     setLoadingTypes(false);
   }
 
@@ -88,9 +95,17 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   }, [properties, selectedId]);
 
   useEffect(() => {
-    if (selected?.vertical === "hospitality") void loadRoomTypes(selected.id);
-    else setRoomTypes([]);
-  }, [selectedId]);
+    if (selected?.vertical === "hospitality") {
+      void loadRoomTypes(selected.id);
+    } else {
+      roomTypeRequest.current += 1;
+      setRoomTypes([]);
+      setLoadingTypes(false);
+    }
+    return () => {
+      roomTypeRequest.current += 1;
+    };
+  }, [selectedId, selected?.vertical]);
 
   async function saveProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
