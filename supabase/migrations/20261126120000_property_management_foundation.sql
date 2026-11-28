@@ -244,8 +244,9 @@ where not exists (
 );
 
 -- Freeze one unambiguous organization-to-property mapping for this migration.
+-- Do not depend on the migration runner wrapping this file in one transaction.
+-- Keep the mapping for this migration session and explicitly drop it after the backfill.
 create temporary table vellara_legacy_property_map
-on commit drop
 as
 select property.organization_id, max(property.id::text)::uuid as property_id
 from public.properties property
@@ -329,6 +330,8 @@ set property_id = mapping.property_id
 from vellara_legacy_property_map mapping
 where reservation.property_id is null
   and mapping.organization_id = reservation.organization_id;
+
+drop table vellara_legacy_property_map;
 
 -- Existing data is assigned before these columns become mandatory.
 alter table public.rooms alter column property_id set not null;
