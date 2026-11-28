@@ -100,7 +100,20 @@ Also test concurrent reservation inserts and existing overlap constraints. Do no
 3. **Owner bypass:** confirm that every active organization owner should have access to every property, regardless of assignment.
 4. **Assignment management:** managers can read assignment records for properties assigned to them but cannot invite, assign, or revoke staff. Confirm this is intentional.
 
-## 6. Release blockers and constraints
+## 6. Read-only prerequisite checks (2026-11-28)
+
+The connected Supabase project was queried read-only while reviewing the proposed migration stack:
+
+- Migration history contains 11 applied migrations; none of the proposed property migrations is recorded as applied.
+- The prerequisite objects exist: `public.rooms`, `public.reservations`, `public.business_profiles`, `public.organization_memberships`, `private.touch_updated_at()`, `private.has_organization_role(uuid,text[])`, and `private.is_organization_member(uuid)`.
+- `organization_memberships` has the required unique constraint on `(organization_id, user_id)`, so the proposed composite foreign key from property staff assignments has a valid referenced key.
+- Authenticated users can read organization memberships under the existing self-or-admin policy; this supports the owner-only staff-assignment insert check without granting membership writes.
+- The legacy `rooms` and `reservations` tables each currently contain zero rows. This reduces the amount of legacy data to backfill, but does not prove that the migration is safe for populated customer databases.
+- The property tables remain absent from the connected database. No schema changes or data writes were performed.
+
+These checks establish prerequisites only. They do not execute the proposed DDL, prove migration replay, or test behavior under authenticated JWT claims.
+
+## 7. Release blockers and constraints
 
 - Do not apply migrations to production until an isolated replay succeeds and all required authorization tests pass.
 - The corrected legacy backfill from PR #11 has now been copied into the PR #12 and PR #14 branch heads so the dependent property-creation and inventory stack no longer carries the older mapping logic. The temporary legacy-property map is explicitly dropped after its final use rather than relying on `ON COMMIT DROP`, avoiding dependence on whether the migration runner wraps the whole file in one transaction. It still requires isolated replay, including reuse of existing room types and temporary-table transaction behavior.
