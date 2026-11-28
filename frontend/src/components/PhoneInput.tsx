@@ -8,9 +8,9 @@ const countries = getCountries().map((code) => ({
   callingCode: getCountryCallingCode(code),
 })).sort((a, b) => a.name.localeCompare(b.name));
 
-type Props = { name: string; value?: string; defaultCountry?: string; countryFieldName?: string };
+type Props = { name: string; value?: string; defaultCountry?: string };
 
-export default function PhoneInput({ name, value = "", defaultCountry = "", countryFieldName }: Props) {
+export default function PhoneInput({ name, value = "", defaultCountry = "" }: Props) {
   const initial = useMemo(() => {
     const parsed = value ? parsePhoneNumberFromString(value) : undefined;
     return { country: (parsed?.country || defaultCountry || "") as CountryCode | "", number: value };
@@ -40,7 +40,6 @@ export default function PhoneInput({ name, value = "", defaultCountry = "", coun
         aria-invalid={!valid} />
     </div>
     <input type="hidden" name={name} value={e164} />
-    {countryFieldName && <input type="hidden" name={countryFieldName} value={country} />}
     <small className={valid ? "phone-input-hint" : "phone-input-error"}>
       {!number.trim() ? "Optional. Select a country before entering a local number."
         : valid ? e164 || "Enter a complete number to save it in international format."
