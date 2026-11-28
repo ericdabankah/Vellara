@@ -222,3 +222,46 @@ References:
 - https://supabase.com/docs/guides/storage/schema/design
 - https://supabase.com/kb/troubleshooting/storage-error-403-forbidden-new-row-violates-row-level-security-policy-on-upload-a94384
 - https://supabase.com/blog/supabase-storage-performance-security-reliability-updates
+
+
+## 12. Owner Desk frontend requirements
+
+Add a dedicated **Media** area inside the selected property's detail workspace. It must be available for both verticals and must never render hotel room-type controls for a real-estate property.
+
+### Library layout
+
+- Property header and vertical remain visible so users know which property's media they are editing.
+- Show a compact summary: total ready images, published images, and remaining upload capacity if a plan-level limit is introduced later.
+- Use a responsive image grid with consistent thumbnails, filename/category, upload/publication state, and cover marker.
+- Provide category filtering and a search/filter by filename or caption only when the library is large enough to justify it.
+- Keep empty, loading, error, and permission-denied states distinct. Do not show fake sample media as if it were uploaded.
+- Use accessible labels and keyboard-operable controls. Do not rely on color alone to distinguish pending, failed, published, or archived states.
+
+### Upload experience
+
+- Support multi-select and drag-and-drop for allowed image types.
+- Validate file extension, MIME type, and size in the browser for early feedback, but treat backend verification as authoritative.
+- Show each file's progress and lifecycle state independently: preparing, uploading, verifying, ready, or failed.
+- Allow retry for a failed/pending upload when the backend says the intent remains valid. Never silently reuse an expired upload token.
+- Do not block the entire library while one image uploads.
+- Do not automatically publish new uploads.
+- If an upload fails after the binary is stored, offer retry/finalize or safe cleanup; do not create a false ready card.
+
+### Asset editing
+
+- Edit category, caption, alt text, and display order.
+- Mark one eligible image as the cover. The UI must reflect the server-confirmed cover state after save.
+- Publish/unpublish is an explicit action with confirmation when it changes customer-visible content.
+- Archive is a soft-archive action with confirmation. Do not label it Delete unless the binary is actually removed after the retention process.
+- Replacing a cover must not remove the current cover until the replacement upload is ready and the server confirms the switch.
+- The UI must refresh the asset list after server-confirmed mutations and must not optimistically display a publish/cover state that the server rejected.
+
+### Property lifecycle
+
+- Inactive or archived properties may show existing media to authorized managers for historical administration, but upload and publication controls are disabled.
+- Public mini-site media is unavailable for inactive or archived properties, regardless of cached Owner Desk state.
+- Hospitality and real-estate properties use the same media component and asset categories. Do not add room-level or listing-level media selectors in this increment.
+
+### Frontend integration boundary
+
+The current `frontend/src/lib/api.ts` deliberately rejects unapproved routes and payloads. Keep that fail-closed behavior. The media UI must call typed feature methods only after the backend owner approves the API path, request/response envelope, upload-intent payload, finalize semantics, and error model. Do not bypass the backend by writing metadata directly from the browser or exposing a Storage secret key.
