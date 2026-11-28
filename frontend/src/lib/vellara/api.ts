@@ -1,4 +1,14 @@
-import type { ApiErrorBody, ApiResult, AvailabilityRequest, InventoryHold, PaymentAttempt, PropertySummary, Quote } from "./contracts";
+import type {
+  ApiErrorBody,
+  ApiResult,
+  AvailabilityQuote,
+  AvailabilityRequest,
+  CreateHoldRequest,
+  HoldResponse,
+  OwnerPropertyResponse,
+  PaymentAttemptResponse,
+  PublicPropertyResponse,
+} from "./contracts";
 
 export class VellaraApiError extends Error {
   readonly code: string;
@@ -13,12 +23,11 @@ export class VellaraApiError extends Error {
   }
 }
 export interface VellaraApi {
-  listProperties(): Promise<ApiResult<PropertySummary[]>>;
-  resolvePublicProperty(organizationSlug: string, propertySlug: string): Promise<ApiResult<PropertySummary>>;
-  createQuote(input: AvailabilityRequest): Promise<ApiResult<Quote>>;
-  createHold(quoteId: string): Promise<ApiResult<InventoryHold>>;
-  createPaymentAttempt(holdId: string): Promise<ApiResult<PaymentAttempt>>;
-  publishProperty(propertyId: string): Promise<ApiResult<PropertySummary>>;
+  resolvePublicProperty(organizationSlug: string, propertySlug: string): Promise<ApiResult<PublicPropertyResponse>>;
+  checkAvailability(organizationSlug: string, propertySlug: string, input: AvailabilityRequest): Promise<ApiResult<AvailabilityQuote>>;
+  createHold(organizationSlug: string, propertySlug: string, input: CreateHoldRequest, idempotencyKey: string): Promise<ApiResult<HoldResponse>>;
+  createPaymentAttempt(holdId: string, idempotencyKey: string): Promise<ApiResult<PaymentAttemptResponse>>;
+  publishProperty(propertyId: string): Promise<ApiResult<OwnerPropertyResponse>>;
 }
 export interface VellaraApiOptions {
   baseUrl: string;
@@ -26,8 +35,9 @@ export interface VellaraApiOptions {
   fetcher?: typeof fetch;
 }
 export function createVellaraApi(options: VellaraApiOptions): VellaraApi {
-  const baseUrl = options.baseUrl.replace(/\/+$/, "");
+  const baseUrl = options.baseUrl.replace(/\\/+$/, "");
   const fetcher = options.fetcher ?? fetch;
+
   async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
     const token = await options.getAccessToken?.();
     const headers = new Headers(init.headers);
@@ -36,6 +46,7 @@ export function createVellaraApi(options: VellaraApiOptions): VellaraApi {
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const response = await fetcher(`${baseUrl}/v1${path}`, { ...init, headers, credentials: "include" });
     const payload: unknown = await response.json().catch(() => null);
+
     if (!response.ok) {
       const body = payload as Partial<ApiErrorBody> | null;
       const error = body && typeof body.error === "object" ? body.error : null;
@@ -49,16 +60,25 @@ export function createVellaraApi(options: VellaraApiOptions): VellaraApi {
     if (payload === null || payload === undefined) {
       throw new VellaraApiError("The API returned an empty response.", "INVALID_RESPONSE", response.headers.get("x-request-id"), response.status);
     }
-    // VELLARA's agreed API convention is a direct JSON success object, not a data envelope.
     return { data: payload as T, requestId: response.headers.get("x-request-id") };
   }
+
   return {
-    listProperties: () => request<PropertySummary[]>("/owner/properties"),
     resolvePublicProperty: (organizationSlug, propertySlug) =>
-      request<PropertySummary>(`/public/properties/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(propertySlug)}`),
-    createQuote: (input) => request<Quote>("/hospitality/quotes", { method: "POST", body: JSON.stringify(input) }),
-    createHold: (quoteId) => request<InventoryHold>("/hospitality/holds", { method: "POST", body: JSON.stringify({ quoteId }) }),
-    createPaymentAttempt: (holdId) => request<PaymentAttempt>("/payments/attempts", { method: "POST", body: JSON.stringify({ holdId }) }),
-    publishProperty: (propertyId) => request<PropertySummary>(`/owner/properties/${encodeURIComponent(propertyId)}/publish`, { method: "POST" }),
+      request<PublicPropertyResponse>(`/public/properties/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(propertySlug)}`),
+    checkAvailability: (organizationSlug, propertySlug, input) =>
+      request<AvailabilityQuote>(`/public/properties/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(propertySlug)}/availability`, {
+        method: "POST", body: JSON.stringify(input),
+      }),
+    createHold: (organizationSlug, propertySlug, input, idempotencyKey) =>
+      request<HoldResponse>(`/public/properties/${encodeURIComponent(organizationSlug)}/${encodeURIComponent(propertySlug)}/holds`, {
+        method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(input),
+      }),
+    createPaymentAttempt: (holdId, idempotencyKey) =>
+      request<PaymentAttemptResponse>(`/public/holds/${encodeURIComponent(holdId)}/payment-attempts`, {
+        method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({}),
+      }),
+    publishProperty: (propertyId) =>
+      request<OwnerPropertyResponse>(`/owner/properties/${encodeURIComponent(propertyId)}/publish`, { method: "POST" }),
   };
 }
