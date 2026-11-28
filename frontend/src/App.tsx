@@ -52,10 +52,10 @@ function pill(status: string) { return "status-pill status-" + status.toLowerCas
 function roomTypeName(room: RoomRow) { return room.room_types?.name || room.room_type; }
 
 export default function App() {
-  return <AuthGate>{({ workspace, workspaces, onWorkspaceChange, signOut }) => <OwnerDesk workspace={workspace} workspaces={workspaces} onWorkspaceChange={onWorkspaceChange} signOut={signOut} />}</AuthGate>;
+  return <AuthGate>{({ workspace, workspaces, onWorkspaceChange, signOut, refreshWorkspaceModules }) => <OwnerDesk workspace={workspace} workspaces={workspaces} onWorkspaceChange={onWorkspaceChange} signOut={signOut} refreshWorkspaceModules={refreshWorkspaceModules} />}</AuthGate>;
 }
 
-function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { workspace: Workspace; workspaces: Workspace[]; onWorkspaceChange: (workspaceId: string) => void; signOut: () => Promise<void> }) {
+function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut, refreshWorkspaceModules }: { workspace: Workspace; workspaces: Workspace[]; onWorkspaceChange: (workspaceId: string) => void; signOut: () => Promise<void>; refreshWorkspaceModules: () => Promise<void> }) {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [data, setData] = useState<DeskData>(blank);
