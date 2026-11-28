@@ -6,7 +6,7 @@ This folder contains the first provider-independent TypeScript boundary for the 
 
 - `contracts.ts`: shared channel, normalized event, conversation, tool and orchestration contracts.
 - `validate-event.ts`: strict shape/bounds validation for an already normalized provider event candidate.
-- `verify-signature.ts`: Web Crypto verification of Retell and Meta signatures against the untouched request body.
+- `verify-signature.ts`: Web Crypto verification of Retell and Meta signatures against the untouched request body, plus Meta's GET subscription challenge check.
 
 ## Trust boundary
 
@@ -24,6 +24,7 @@ The production ingestion path must perform those checks before constructing a `R
 - Read and retain the raw request body before JSON parsing. Do not serialize a parsed object and verify that serialization.
 - Retell uses `X-Retell-Signature` in `v=<unix-ms>,d=<hex>` form. Verify with the Retell API key marked with the webhook badge; the signed message is the raw body followed by the timestamp, and the timestamp must be within five minutes.
 - Meta uses `X-Hub-Signature-256: sha256=<hex>`, keyed with the Meta app secret over the raw request body.
+- Meta's GET subscription handshake must require `hub.mode=subscribe`, compare `hub.verify_token` with VELLARA's separately configured verification token, and return `hub.challenge` only after a match.
 - Meta's signature has no timestamp. Signature verification does not replace event deduplication, durable inbox persistence, or idempotent processing.
 - The helpers return a boolean and do not parse payloads, resolve tenants, or authorize actions. Secrets must be supplied by server-side secret bindings and never by browser input.
 
