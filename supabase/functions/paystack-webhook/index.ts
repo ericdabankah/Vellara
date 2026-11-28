@@ -327,16 +327,18 @@ export async function handlePaystackWebhook(
   }
 }
 
-Deno.serve((request: Request) => {
-  const env: Environment = {
-    SUPABASE_URL: Deno.env.get("SUPABASE_URL") ?? "",
-    SUPABASE_SECRET_KEYS: Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}",
-    PAYSTACK_WEBHOOK_SECRET: Deno.env.get("PAYSTACK_WEBHOOK_SECRET") ?? "",
-    PAYSTACK_SECRET_KEY: Deno.env.get("PAYSTACK_SECRET_KEY") ?? undefined,
-  };
+if (import.meta.main) {
+  Deno.serve((request: Request) => {
+    const env: Environment = {
+      SUPABASE_URL: Deno.env.get("SUPABASE_URL") ?? "",
+      SUPABASE_SECRET_KEYS: Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}",
+      PAYSTACK_WEBHOOK_SECRET: Deno.env.get("PAYSTACK_WEBHOOK_SECRET") ?? "",
+      PAYSTACK_SECRET_KEY: Deno.env.get("PAYSTACK_SECRET_KEY") ?? undefined,
+    };
 
-  if (!env.SUPABASE_URL) {
-    return json({ error: "webhook_not_configured" }, 503);
-  }
-  return handlePaystackWebhook(request, env);
-});
+    if (!env.SUPABASE_URL) {
+      return json({ error: "webhook_not_configured" }, 503);
+    }
+    return handlePaystackWebhook(request, env);
+  });
+}
