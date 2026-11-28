@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - staging
       - feat/owner-desk-frontend-foundation
     paths:
       - "frontend/**"
