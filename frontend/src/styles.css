@@ -376,3 +376,5 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .activity-timeline-item>div>small,.activity-timeline-item>time{font-size:8px;color:#89948b}
 .activity-timeline-item>time{white-space:nowrap}
 @media(max-width:740px){.room-status-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-timeline-item{grid-template-columns:28px minmax(0,1fr)}.activity-timeline-item>time{grid-column:2}.room-status-summary-card{padding:9px}.room-status-summary-card .status-pill{font-size:7px}}
+
+.auth-preview-link{display:block;text-align:center;margin:17px 0 4px;color:#8b713e;font-size:10px;font-weight:700;text-decoration:none}.auth-preview-link:hover{text-decoration:underline}
