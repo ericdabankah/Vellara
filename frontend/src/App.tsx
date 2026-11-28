@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 import AuthGate from "./auth/AuthGate";
+import PreviewDemo from "./components/PreviewDemo";
 import PropertyWorkspace from "./components/PropertyWorkspace";
 import { supabase } from "./lib/supabase";
 
@@ -52,6 +53,7 @@ function pill(status: string) { return "status-pill status-" + status.toLowerCas
 function roomTypeName(room: RoomRow) { return room.room_types?.name || room.room_type; }
 
 export default function App() {
+  if (window.location.pathname === "/preview") return <PreviewDemo />;
   return <AuthGate>{({ workspace, workspaces, onWorkspaceChange, signOut, refreshWorkspaceModules }) => <OwnerDesk workspace={workspace} workspaces={workspaces} onWorkspaceChange={onWorkspaceChange} signOut={signOut} refreshWorkspaceModules={refreshWorkspaceModules} />}</AuthGate>;
 }
 
