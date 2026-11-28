@@ -69,6 +69,16 @@ The caller cannot submit organization ID, user ID, owner role, membership status
 
 No route accepts a free-form organization ID for this initial slice. Future tenant-scoped routes must resolve the requested organization through active membership before domain work. RLS must independently enforce row access.
 
+## Phone number registration and verification
+
+Phone registration, ownership verification, and channel activation are specified separately in [PHONE_NUMBER_VERIFICATION_V1.md](./PHONE_NUMBER_VERIFICATION_V1.md). That document records the approved provider direction: Retell AI for voice, Meta WhatsApp Cloud API for WhatsApp, and OpenAI as the shared intelligence engine. It remains a design contract until provider-specific requirements, credentials, webhook security and isolated-database tests are complete. The current API does not expose phone routes, and no number can be activated through this API yet.
+
+
+
+## Receptionist orchestration
+
+Voice and WhatsApp receptionist architecture is specified in [RECEPTIONIST_ORCHESTRATION_V1.md](./RECEPTIONIST_ORCHESTRATION_V1.md). Retell AI is the voice provider, Meta WhatsApp Cloud API is the messaging provider, and OpenAI is the shared intelligence engine behind the VELLARA orchestration boundary. The backend remains authoritative for tenant context, authorization, business rules, bookings, payments and audit. This is a design contract; no live provider integration or production routes are enabled by this documentation.
+
 ## Compatibility
 
-This contract is deliberately narrow. It does not yet define inventory, reservations, payments, staff PINs, telephone, WhatsApp, mini-website publishing, AI tool calls or QR check-in. Those domains require separate state machines and contracts before implementation.
+This contract remains deliberately narrow. Inventory, reservations, payments, staff PINs, mini-website publishing, AI tool calls and QR check-in require separate state machines and contracts before implementation.
