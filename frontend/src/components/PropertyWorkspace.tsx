@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { Archive, BedDouble, Check, ChevronLeft, CircleHelp, Edit3, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -61,6 +60,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   const [editingProperty, setEditingProperty] = useState(false);
   const [editingType, setEditingType] = useState<RoomType | null>(null);
   const [addingType, setAddingType] = useState(false);
+  const roomTypeRequest = useRef(0);
 
   const selected = properties.find((property) => property.id === selectedId) ?? null;
   const hospitality = properties.filter((property) => property.vertical === "hospitality");
@@ -70,15 +70,20 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
 
   async function loadRoomTypes(propertyId: string) {
     if (!supabase || !propertyId) return;
+    const requestId = ++roomTypeRequest.current;
     setLoadingTypes(true);
     setError("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("room_types")
+    const result = await supabase.from("room_types")
       .select("id,organization_id,property_id,name,description,default_capacity,bed_configuration,amenities,default_nightly_rate_minor,is_active,archived_at")
       .eq("organization_id", workspaceId).eq("property_id", propertyId)
       .order("name", { ascending: true });
-    if (result.error) setError(result.error.message);
-    else setRoomTypes((result.data ?? []) as RoomType[]);
+    if (requestId !== roomTypeRequest.current) return;
+    if (result.error) {
+      setRoomTypes([]);
+      setError(result.error.message);
+    } else {
+      setRoomTypes((result.data ?? []) as RoomType[]);
+    }
     setLoadingTypes(false);
   }
 
@@ -90,17 +95,24 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   }, [properties, selectedId]);
 
   useEffect(() => {
-    if (selected?.vertical === "hospitality") void loadRoomTypes(selected.id);
-    else setRoomTypes([]);
-  }, [selectedId]);
+    if (selected?.vertical === "hospitality") {
+      void loadRoomTypes(selected.id);
+    } else {
+      roomTypeRequest.current += 1;
+      setRoomTypes([]);
+      setLoadingTypes(false);
+    }
+    return () => {
+      roomTypeRequest.current += 1;
+    };
+  }, [selectedId, selected?.vertical]);
 
   async function saveProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !selected) return;
     const form = new FormData(event.currentTarget);
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("properties").update({
+    const result = await supabase.from("properties").update({
       name: String(form.get("name") ?? "").trim(),
       slug: String(form.get("slug") ?? "").trim().toLowerCase(),
       description: String(form.get("description") ?? "").trim(),
@@ -123,7 +135,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
 
   async function saveRoomType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !selected || selected.vertical !== "hospitality") return;
+    if (!supabase || !selected || selected.vertical !== "hospitality" || selected.status !== "active") return;
     const form = new FormData(event.currentTarget);
     const bedConfiguration = Object.fromEntries(bedLabels.map(({ key }) => [key, Number(form.get("bed_" + key) ?? 0)] as const).filter(([, value]) => value > 0));
     const amenities = String(form.get("amenities") ?? "").split(",").map((item) => item.trim()).filter(Boolean).slice(0, 40);
@@ -137,10 +149,9 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
       default_nightly_rate_minor: rateText ? Math.round(Number(rateText) * 100) : null,
     };
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
     const result = editingType
-      ? await db.from("room_types").update(fields).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
-      : await db.from("room_types").insert({ ...fields, organization_id: workspaceId, property_id: selected.id }).select("id").maybeSingle();
+      ? await supabase.from("room_types").update(fields).eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", editingType.id).select("id").maybeSingle()
+      : await supabase.from("room_types").insert({ ...fields, organization_id: workspaceId, property_id: selected.id }).select("id").maybeSingle();
     if (result.error) setError(result.error.message);
     else if (!result.data) setError("The room type was not saved. Check your property access.");
     else {
@@ -152,11 +163,10 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
   }
 
   async function archiveRoomType(type: RoomType) {
-    if (!supabase || !selected) return;
+    if (!supabase || !selected || selected.status !== "active") return;
     if (!window.confirm("Archive “" + type.name + "”? Existing rooms will keep their history, but this type will no longer be available for new rooms.")) return;
     setSaving(true); setError(""); setNotice("");
-    const db = supabase as unknown as SupabaseClient<any>;
-    const result = await db.from("room_types").update({ is_active: false, archived_at: new Date().toISOString() })
+    const result = await supabase.from("room_types").update({ is_active: false, archived_at: new Date().toISOString() })
       .eq("organization_id", workspaceId).eq("property_id", selected.id).eq("id", type.id).select("id").maybeSingle();
     if (result.error) setError(result.error.message);
     else if (!result.data) setError("The room type was not archived. Check your property access.");
@@ -164,7 +174,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     setSaving(false);
   }
 
-  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is not active yet</h2><p>The Owner Desk is ready for this module, but the connected database does not expose the new property tables yet. The migration is being reviewed and has not been applied to the live database.</p><small>{schemaError}</small></section>;
+  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is unavailable</h2><p>The Owner Desk could not load every required property table. This can mean the property migrations have not been applied, or the current workspace does not have the required database permissions. Existing property data is hidden until the full schema is available.</p><small>{schemaError || "Refresh the workspace or ask an administrator to check the property database migrations and access policies."}</small></section>;
 
   if (selected) return <div className="property-management">
     <div className="property-detail-back"><button className="secondary-button" onClick={() => { setSelectedId(""); setEditingProperty(false); setAddingType(false); setEditingType(null); setError(""); setNotice(""); }}><ChevronLeft size={15} />All properties</button><span className="property-vertical">{selected.vertical === "hospitality" ? "HOSPITALITY PROPERTY" : "REAL ESTATE PROPERTY"}</span></div>
@@ -183,8 +193,8 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
       <Field label="Description" wide><textarea name="description" rows={3} defaultValue={selected.description || ""} /></Field>
     </div><div className="settings-footer"><div><small>Effective currency: {currency} · {selected.currency_override ? "Custom override" : "Inherited from workspace"}</small><small>Effective timezone: {timezone} · {selected.timezone_override ? "Custom override" : "Inherited from workspace"}</small></div><button className="primary-button" disabled={saving}><Save size={14} />{saving ? "Saving…" : "Save property"}</button></div></form>}
     <div className="property-summary-grid"><article className="metric-card"><div className="metric-top"><span>Vertical</span><i><BedDouble /></i></div><strong>{selected.vertical === "hospitality" ? "Hospitality" : "Real estate"}</strong><small>Immutable after creation</small></article><article className="metric-card"><div className="metric-top"><span>Currency</span><i>₵</i></div><strong>{currency}</strong><small>{selected.currency_override ? "Property override" : "Inherited default"}</small></article><article className="metric-card"><div className="metric-top"><span>Timezone</span><i>◷</i></div><strong className="property-timezone-value">{timezone}</strong><small>{selected.timezone_override ? "Property override" : "Inherited default"}</small></article></div>
-    {selected.vertical === "hospitality" && <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room types</h2><p>Custom definitions for this property. Existing rooms retain their assigned type.</p></div><button className="primary-button" onClick={() => { setEditingType(null); setAddingType(true); }}><Plus size={15} />Add room type</button></div>
-      {loadingTypes ? <div className="loading-panel"><span className="loader" />Loading room types…</div> : roomTypes.length ? <div className="room-type-list">{roomTypes.map((type) => <article className={type.is_active ? "room-type-row" : "room-type-row room-type-archived"} key={type.id}><div className="room-type-icon"><BedDouble /></div><div className="room-type-main"><b>{type.name}</b><p>{type.description || "No description added."}</p><div className="room-type-tags"><span>{type.default_capacity} guests</span>{Object.entries(type.bed_configuration || {}).filter(([, count]) => count > 0).map(([bed, count]) => <span key={bed}>{count} × {bed}</span>)}{type.amenities.map((amenity) => <span key={amenity}>{amenity}</span>)}</div></div><div className="room-type-rate">{type.default_nightly_rate_minor == null ? "Rate not set" : new Intl.NumberFormat("en-GH", { style: "currency", currency }).format(type.default_nightly_rate_minor / 100)}</div><span className={type.is_active ? "status-pill status-active" : "status-pill status-archived"}>{type.is_active ? "Active" : "Archived"}</span><div className="room-type-actions"><button className="icon-button" title="Edit room type" onClick={() => { setEditingType(type); setAddingType(false); }}><Edit3 size={15} /></button>{type.is_active && <button className="icon-button" title="Archive room type" disabled={saving} onClick={() => void archiveRoomType(type)}><Archive size={15} /></button>}</div></article>)}</div> : <div className="property-type-empty"><BedDouble /><h3>No room types yet</h3><p>Create the room categories your property actually uses. VELLARA does not impose a fixed catalogue.</p><button className="secondary-button" onClick={() => setAddingType(true)}><Plus size={14} />Create first room type</button></div>}
+    {selected.vertical === "hospitality" && <section className="surface data-surface"><div className="table-toolbar"><div><h2>Room types</h2><p>Custom definitions for this property. Existing rooms retain their assigned type.</p></div><button className="primary-button" disabled={selected.status !== "active"} title={selected.status !== "active" ? "Activate this property before changing room types" : "Add a room type"} onClick={() => { setEditingType(null); setAddingType(true); }}><Plus size={15} />Add room type</button></div>
+      {loadingTypes ? <div className="loading-panel"><span className="loader" />Loading room types…</div> : roomTypes.length ? <div className="room-type-list">{roomTypes.map((type) => <article className={type.is_active ? "room-type-row" : "room-type-row room-type-archived"} key={type.id}><div className="room-type-icon"><BedDouble /></div><div className="room-type-main"><b>{type.name}</b><p>{type.description || "No description added."}</p><div className="room-type-tags"><span>{type.default_capacity} guests</span>{Object.entries(type.bed_configuration || {}).filter(([, count]) => count > 0).map(([bed, count]) => <span key={bed}>{count} × {bed}</span>)}{type.amenities.map((amenity) => <span key={amenity}>{amenity}</span>)}</div></div><div className="room-type-rate">{type.default_nightly_rate_minor == null ? "Rate not set" : new Intl.NumberFormat("en-GH", { style: "currency", currency }).format(type.default_nightly_rate_minor / 100)}</div><span className={type.is_active ? "status-pill status-active" : "status-pill status-archived"}>{type.is_active ? "Active" : "Archived"}</span><div className="room-type-actions"><button className="icon-button" title={selected.status !== "active" ? "Activate this property before editing room types" : "Edit room type"} disabled={saving || selected.status !== "active"} onClick={() => { setEditingType(type); setAddingType(false); }}><Edit3 size={15} /></button>{type.is_active && <button className="icon-button" title={selected.status !== "active" ? "Activate this property before archiving room types" : "Archive room type"} disabled={saving || selected.status !== "active"} onClick={() => void archiveRoomType(type)}><Archive size={15} /></button>}</div></article>)}</div> : <div className="property-type-empty"><BedDouble /><h3>No room types yet</h3><p>Create the room categories your property actually uses. VELLARA does not impose a fixed catalogue.</p><button className="secondary-button" disabled={selected.status !== "active"} title={selected.status !== "active" ? "Activate this property before adding room types" : "Create first room type"} onClick={() => setAddingType(true)}><Plus size={14} />Create first room type</button></div>}
     </section>}
     {selected.vertical === "real_estate" && <section className="surface property-type-empty"><ShieldCheck /><h3>Real-estate workspace foundation</h3><p>Property details are ready. Listings, viewings, offers, sales and rental workflows will be introduced as a separate real-estate domain, not as hotel room inventory.</p></section>}
     {(addingType || editingType) && <RoomTypeModal key={editingType?.id || "new"} type={editingType} currency={currency} saving={saving} onClose={() => { setAddingType(false); setEditingType(null); }} onSubmit={saveRoomType} />}

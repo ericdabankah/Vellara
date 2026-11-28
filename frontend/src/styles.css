@@ -233,7 +233,7 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .field input,.field select,.field textarea{width:100%;min-height:39px;padding:9px 10px;border:1px solid #e6e2d8;border-radius:7px;background:#fffefa;color:#304239;outline:none;font-size:10px}
 .field textarea{resize:vertical;line-height:1.5}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:#b9a06a;box-shadow:0 0 0 3px #e0a93b18}
-.field-wide{grid-column:1/-1}
+.field-wide{grid-column:1/-1}.settings-module-note{grid-column:1/-1;margin:0;padding:11px 13px;border:1px solid #263d32;border-radius:10px;background:#101d17;color:#a8b8ad;font-size:11px;line-height:1.6}
 .settings-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-top:18px;margin-top:20px;border-top:1px solid #efede7}
 .settings-footer>div{display:flex;flex-direction:column;gap:4px}
 .settings-footer small{font-size:8px;color:#929c94}

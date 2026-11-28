@@ -356,6 +356,216 @@ export type Database = {
           },
         ]
       }
+      organization_modules: {
+        Row: {
+          created_at: string
+          disabled_at: string | null
+          enabled_at: string
+          is_enabled: boolean
+          module_key: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          disabled_at?: string | null
+          enabled_at?: string
+          is_enabled?: boolean
+          module_key: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          disabled_at?: string | null
+          enabled_at?: string
+          is_enabled?: boolean
+          module_key?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_modules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          address_line_1: string | null
+          address_line_2: string | null
+          city: string | null
+          country_code: string
+          created_at: string
+          created_by: string | null
+          currency_override: string | null
+          description: string
+          id: string
+          name: string
+          organization_id: string
+          postal_code: string | null
+          region: string | null
+          slug: string
+          status: string
+          timezone_override: string | null
+          updated_at: string
+          vertical: string
+        }
+        Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
+          country_code?: string
+          created_at?: string
+          created_by?: string | null
+          currency_override?: string | null
+          description?: string
+          id?: string
+          name: string
+          organization_id: string
+          postal_code?: string | null
+          region?: string | null
+          slug: string
+          status?: string
+          timezone_override?: string | null
+          updated_at?: string
+          vertical: string
+        }
+        Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
+          country_code?: string
+          created_at?: string
+          created_by?: string | null
+          currency_override?: string | null
+          description?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          postal_code?: string | null
+          region?: string | null
+          slug?: string
+          status?: string
+          timezone_override?: string | null
+          updated_at?: string
+          vertical?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_staff_assignments: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          property_id: string
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          property_id: string
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          property_id?: string
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_staff_assignments_organization_id_property_id_fkey"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "property_staff_assignments_organization_id_user_id_fkey"
+            columns: ["organization_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "organization_memberships"
+            referencedColumns: ["organization_id", "user_id"]
+          },
+        ]
+      }
+      room_types: {
+        Row: {
+          amenities: string[]
+          archived_at: string | null
+          bed_configuration: Json
+          created_at: string
+          default_capacity: number
+          default_nightly_rate_minor: number | null
+          description: string
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          amenities?: string[]
+          archived_at?: string | null
+          bed_configuration?: Json
+          created_at?: string
+          default_capacity?: number
+          default_nightly_rate_minor?: number | null
+          description?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          amenities?: string[]
+          archived_at?: string | null
+          bed_configuration?: Json
+          created_at?: string
+          default_capacity?: number
+          default_nightly_rate_minor?: number | null
+          description?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_types_organization_id_property_id_fkey"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       organization_phone_numbers: {
         Row: {
           created_at: string
@@ -786,6 +996,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reservations_org_property_fk"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "reservations_org_property_room_fk"
+            columns: ["organization_id", "property_id", "room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["organization_id", "property_id", "id"]
+          },
+          {
             foreignKeyName: "reservations_organization_room_fk"
             columns: ["organization_id", "room_id"]
             isOneToOne: false
@@ -850,6 +1074,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rooms_org_property_fk"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "rooms_org_property_room_type_fk"
+            columns: ["organization_id", "property_id", "room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["organization_id", "property_id", "id"]
           },
         ]
       }
@@ -1040,6 +1278,20 @@ export type Database = {
           p_timezone?: string
         }
         Returns: string
+      }
+      create_property: {
+        Args: {
+          p_city?: string | null
+          p_currency_override?: string | null
+          p_description?: string
+          p_name: string
+          p_organization_id: string
+          p_region?: string | null
+          p_slug: string
+          p_timezone_override?: string | null
+          p_vertical: string
+        }
+        Returns: Database["public"]["Tables"]["properties"]["Row"]
       }
       create_receptionist_instance: {
         Args: {

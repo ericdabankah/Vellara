@@ -16,6 +16,7 @@ type RenderProps = {
   workspaces: Workspace[];
   onWorkspaceChange: (workspaceId: string) => void;
   signOut: () => Promise<void>;
+  refreshWorkspaceModules: () => Promise<void>;
 };
 
 type Props = {
@@ -38,6 +39,11 @@ type BusinessProfileRow = {
   organization_id: string;
   business_type: string;
   display_name: string;
+};
+
+type OrganizationModuleRow = {
+  organization_id: string;
+  module_key: string;
 };
 
 export default function AuthGate({ children }: Props) {
@@ -137,15 +143,38 @@ export default function AuthGate({ children }: Props) {
       return;
     }
 
-    const businessResult = await supabase
-      .from("business_profiles")
-      .select("organization_id, business_type, display_name")
-      .in("organization_id", organizations.map((organization) => organization.id));
+    // Load the legacy profile and current module state together. The module
+    // query may fail before the property migrations are deployed; that one
+    // failure is intentionally non-blocking and falls back to the profile.
+    const [businessResult, moduleResult] = await Promise.all([
+      supabase
+        .from("business_profiles")
+        .select("organization_id, business_type, display_name")
+        .in("organization_id", organizations.map((organization) => organization.id)),
+      supabase
+        .from("organization_modules")
+        .select("organization_id, module_key")
+        .in("organization_id", organizations.map((organization) => organization.id))
+        .eq("is_enabled", true),
+    ]);
 
     if (businessResult.error) {
       setErrorMessage(businessResult.error.message);
       setWorkspaceLoading(false);
       return;
+    }
+
+    // The legacy business_type field is a signup descriptor, not the source of
+    // truth for enabled verticals. Fall back only while the module table is not
+    // available (for example, before the property migrations are deployed).
+
+    const modulesByOrganization = new Map<string, string[]>();
+    if (!moduleResult.error) {
+      for (const module of (moduleResult.data ?? []) as OrganizationModuleRow[]) {
+        const current = modulesByOrganization.get(module.organization_id) ?? [];
+        current.push(module.module_key);
+        modulesByOrganization.set(module.organization_id, current);
+      }
     }
 
     const businessByOrganization = new Map(
@@ -159,7 +188,11 @@ export default function AuthGate({ children }: Props) {
         return {
           id: organization.id,
           name: business?.display_name || organization.name,
-          businessType: business?.business_type || "hotel",
+          businessType: moduleResult.error
+            ? business?.business_type || "workspace"
+            : (modulesByOrganization.get(organization.id) ?? [])
+                .map((moduleKey) => moduleKey === "hospitality" ? "Hospitality" : moduleKey === "real_estate" ? "Real estate" : moduleKey)
+                .join(" + ") || "No modules enabled",
           role: membership?.role || "member",
         };
       })
@@ -177,6 +210,32 @@ export default function AuthGate({ children }: Props) {
     if (session) void loadWorkspace();
     else setWorkspace(null);
   }, [session, loadWorkspace]);
+
+  const refreshWorkspaceModules = useCallback(async () => {
+    if (!supabase || workspaces.length === 0) return;
+    const result = await supabase
+      .from("organization_modules")
+      .select("organization_id, module_key")
+      .in("organization_id", workspaces.map((item) => item.id))
+      .eq("is_enabled", true);
+    if (result.error) return;
+
+    const modulesByOrganization = new Map<string, string[]>();
+    for (const module of (result.data ?? []) as OrganizationModuleRow[]) {
+      const current = modulesByOrganization.get(module.organization_id) ?? [];
+      current.push(module.module_key);
+      modulesByOrganization.set(module.organization_id, current);
+    }
+    const updatedWorkspaces = workspaces.map((item) => ({
+      ...item,
+      businessType: (modulesByOrganization.get(item.id) ?? [])
+        .map((moduleKey) => moduleKey === "hospitality" ? "Hospitality" : moduleKey === "real_estate" ? "Real estate" : moduleKey)
+        .join(" + ") || "No modules enabled",
+    }));
+    setWorkspaces(updatedWorkspaces);
+    const selected = updatedWorkspaces.find((item) => item.id === selectedWorkspaceId.current);
+    if (selected) setWorkspace(selected);
+  }, [workspaces]);
 
   function handleWorkspaceChange(workspaceId: string) {
     const nextWorkspace = workspaces.find((item) => item.id === workspaceId);
@@ -356,7 +415,7 @@ export default function AuthGate({ children }: Props) {
           <p>Tell us about the business VELLARA will help you run. You can complete the finer details later.</p>
           <form onSubmit={createWorkspace} className="auth-form">
             <label><span>Business name</span><div><Building2/><input value={businessName} onChange={(event) => setBusinessName(event.target.value)} required minLength={2} maxLength={120} placeholder="e.g. The Garden Hotel" /></div></label>
-            <label><span>Business type</span><select value={businessType} onChange={(event) => setBusinessType(event.target.value)}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></label>
+            <label><span>Starting business type</span><select value={businessType} onChange={(event) => setBusinessType(event.target.value)}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></label><small className="auth-footnote">This sets your initial profile only. You can add hospitality and real-estate properties independently later.</small>
             {errorMessage && <div className="auth-error" role="alert">{errorMessage}</div>}
             <button className="auth-submit" disabled={submitting}>{submitting ? "Creating workspace…" : "Create workspace"}</button>
           </form>
@@ -367,5 +426,5 @@ export default function AuthGate({ children }: Props) {
     );
   }
 
-  return <>{children({ workspace, workspaces, onWorkspaceChange: handleWorkspaceChange, signOut })}</>;
+  return <>{children({ workspace, workspaces, onWorkspaceChange: handleWorkspaceChange, signOut, refreshWorkspaceModules })}</>;
 }
