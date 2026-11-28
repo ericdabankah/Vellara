@@ -1281,14 +1281,14 @@ export type Database = {
       }
       create_property: {
         Args: {
-          p_city?: string
-          p_currency_override?: string
+          p_city?: string | null
+          p_currency_override?: string | null
           p_description?: string
           p_name: string
           p_organization_id: string
-          p_region?: string
+          p_region?: string | null
           p_slug: string
-          p_timezone_override?: string
+          p_timezone_override?: string | null
           p_vertical: string
         }
         Returns: Database["public"]["Tables"]["properties"]["Row"]
