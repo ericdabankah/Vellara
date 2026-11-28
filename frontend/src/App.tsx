@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowDownLeft, ArrowUpRight, BedDouble, Bell, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, CreditCard, Headphones, LayoutDashboard, LogOut, Menu, MessageSquare, Phone, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 import AuthGate from "./auth/AuthGate";
 import PropertyWorkspace from "./components/PropertyWorkspace";
@@ -21,7 +20,7 @@ type PlanRow = { id: string; code: string; name: string; description: string; is
 type EntitlementRow = { plan_id: string; phone_number_limit: number | null; receptionist_instance_limit: number | null; concurrent_call_limit: number | null; configuration_status: string; custom_entitlements: boolean };
 type PriceRow = { id: string; plan_id: string; currency: string; billing_interval: string; amount_minor: number };
 type ActivityRow = { id: string; event_type: string; summary: string; created_at: string };
-type BusinessProfile = { organization_id: string; business_type: string; display_name: string; legal_name: string | null; description: string | null; contact_email: string | null; contact_phone_e164: string | null; website_url: string | null; address_line_1: string | null; city: string | null; region: string | null; timezone: string; currency: string };
+type BusinessProfile = { organization_id: string; display_name: string; legal_name: string | null; description: string | null; contact_email: string | null; contact_phone_e164: string | null; website_url: string | null; address_line_1: string | null; city: string | null; region: string | null; timezone: string; currency: string };
 type DeskData = { calls: CallRow[]; reservations: ReservationRow[]; guests: GuestRow[]; rooms: RoomRow[]; phones: PhoneRow[]; routes: RouteRow[]; receptionists: ReceptionistRow[]; plans: PlanRow[]; entitlements: EntitlementRow[]; prices: PriceRow[]; activities: ActivityRow[]; subscription: { id: string; status: string; plan_id: string; current_period_end: string | null } | null; profile: BusinessProfile | null; metrics: { calls: number; reservations: number; guests: number; occupied: number; rooms: number } };
 type ModalKind = "guest" | "room" | "reservation" | null;
 
@@ -78,8 +77,7 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
     quiet ? setRefreshing(true) : setLoading(true);
     setError("");
     const today = startOfAccraDay();
-    const propertyDb = supabase as unknown as SupabaseClient<any>;
-    const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
+        const [calls, reservations, guests, rooms, phones, routes, receptionists, plans, entitlements, prices, activities, subscription, profile, callCount, reservationCount, guestCount, roomCount, occupiedCount] = await Promise.all([
       supabase.from("calls").select("id,status,direction,caller_e164,guest_name,started_at,duration_seconds,outcome,summary").eq("organization_id", workspace.id).order("started_at", { ascending: false }).limit(100),
       supabase.from("reservations").select("id,property_id,guest_id,room_id,confirmation_code,status,source,arrival_date,departure_date,adults,children,total_amount_minor,currency,special_requests,created_at").eq("organization_id", workspace.id).order("arrival_date", { ascending: true }).limit(200),
       supabase.from("guests").select("id,full_name,phone_e164,email,notes,source,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(200),
@@ -92,7 +90,7 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
       supabase.from("subscription_prices").select("id,plan_id,currency,billing_interval,amount_minor").eq("is_active", true),
       supabase.from("activity_events").select("id,event_type,summary,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(12),
       supabase.from("organization_subscriptions").select("id,status,plan_id,current_period_end").eq("organization_id", workspace.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      supabase.from("business_profiles").select("organization_id,business_type,display_name,legal_name,description,contact_email,contact_phone_e164,website_url,address_line_1,city,region,timezone,currency").eq("organization_id", workspace.id).maybeSingle(),
+      supabase.from("business_profiles").select("organization_id,display_name,legal_name,description,contact_email,contact_phone_e164,website_url,address_line_1,city,region,timezone,currency").eq("organization_id", workspace.id).maybeSingle(),
       supabase.from("calls").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).gte("started_at", today),
       supabase.from("reservations").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).gte("created_at", today),
       supabase.from("guests").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).gte("created_at", today),
@@ -100,9 +98,9 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
       supabase.from("rooms").select("id", { count: "exact", head: true }).eq("organization_id", workspace.id).eq("status", "occupied"),
     ]);
     const [propertyRows, moduleRows, roomTypeRows] = await Promise.all([
-      propertyDb.from("properties").select("id,vertical,name,slug,description,status,address_line_1,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
-      propertyDb.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
-      propertyDb.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
+      supabase.from("properties").select("id,vertical,name,slug,description,status,address_line_1,city,region,timezone_override,currency_override,created_at").eq("organization_id", workspace.id).order("created_at", { ascending: false }),
+      supabase.from("organization_modules").select("module_key,is_enabled").eq("organization_id", workspace.id),
+      supabase.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
     ]);
     if (requestId !== requestVersion.current) return;
     const propertySchemaFailure = propertyRows.error || moduleRows.error || roomTypeRows.error;
@@ -245,9 +243,8 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
     const vertical = String(form.get("vertical") ?? "hospitality") as PropertyRow["vertical"];
     const name = String(form.get("name") ?? "").trim();
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const propertyDb = supabase as unknown as SupabaseClient<any>;
-    setSaving(true); setError(""); setNotice("");
-    const result = await propertyDb.rpc("create_property", {
+        setSaving(true); setError(""); setNotice("");
+    const result = await supabase.rpc("create_property", {
       p_organization_id: workspace.id,
       p_vertical: vertical,
       p_name: name,
@@ -270,7 +267,7 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
     const form = new FormData(event.currentTarget);
     setSaving(true); setError(""); setNotice("");
     const result = await supabase.from("business_profiles").update({
-      display_name: String(form.get("display_name") ?? "").trim(), business_type: String(form.get("business_type") ?? "hotel"),
+      display_name: String(form.get("display_name") ?? "").trim(),
       legal_name: String(form.get("legal_name") ?? "").trim() || null, description: String(form.get("description") ?? "").trim() || null,
       contact_email: String(form.get("contact_email") ?? "").trim() || null, contact_phone_e164: String(form.get("contact_phone_e164") ?? "").trim() || null,
       website_url: String(form.get("website_url") ?? "").trim() || null, address_line_1: String(form.get("address_line_1") ?? "").trim() || null,
@@ -452,7 +449,7 @@ function PlansPage({ plans, entitlements, prices, subscription }: { plans: PlanR
 }
 function SettingsPage({ profile, saving, onSubmit }: { profile: BusinessProfile | null; saving: boolean; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   if (!profile) return <EmptyState title="Business profile unavailable" description="Check your workspace permissions or refresh the Owner Desk." />;
-  return <form className="surface settings-form" onSubmit={onSubmit}><div className="settings-section-heading"><div><h2>Business profile</h2><p>These details identify your property across the Owner Desk.</p></div><span className="settings-readonly"><ShieldCheck size={14} />Owner / manager access</span></div><div className="form-grid"><Field label="Business display name"><input name="display_name" defaultValue={profile.display_name} required minLength={2} maxLength={120} /></Field><Field label="Business type"><select name="business_type" defaultValue={profile.business_type}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></Field><Field label="Legal business name"><input name="legal_name" defaultValue={profile.legal_name || ""} /></Field><Field label="Contact email"><input name="contact_email" type="email" defaultValue={profile.contact_email || ""} /></Field><Field label="Contact phone (E.164)"><input name="contact_phone_e164" defaultValue={profile.contact_phone_e164 || ""} placeholder="+233..." pattern="^\+[1-9][0-9]{7,14}$" /></Field><Field label="Website"><input name="website_url" type="url" defaultValue={profile.website_url || ""} placeholder="https://" /></Field><Field label="Address"><input name="address_line_1" defaultValue={profile.address_line_1 || ""} /></Field><Field label="City"><input name="city" defaultValue={profile.city || ""} /></Field><Field label="Region"><input name="region" defaultValue={profile.region || ""} /></Field><Field label="Business description" wide><textarea name="description" rows={4} defaultValue={profile.description || ""} /></Field></div><div className="settings-footer"><div><small>Timezone: {profile.timezone} · Currency: {profile.currency}</small><small>Managed by workspace configuration.</small></div><button className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button></div></form>;
+  return <form className="surface settings-form" onSubmit={onSubmit}><div className="settings-section-heading"><div><h2>Business profile</h2><p>These details identify your property across the Owner Desk.</p></div><span className="settings-readonly"><ShieldCheck size={14} />Owner / manager access</span></div><div className="form-grid"><Field label="Business display name"><input name="display_name" defaultValue={profile.display_name} required minLength={2} maxLength={120} /></Field><p className="field-wide settings-module-note">Hospitality and real estate are enabled independently. Creating a property of either type enables that module for this workspace, so one business can manage both.</p><Field label="Legal business name"><input name="legal_name" defaultValue={profile.legal_name || ""} /></Field><Field label="Contact email"><input name="contact_email" type="email" defaultValue={profile.contact_email || ""} /></Field><Field label="Contact phone (E.164)"><input name="contact_phone_e164" defaultValue={profile.contact_phone_e164 || ""} placeholder="+233..." pattern="^\+[1-9][0-9]{7,14}$" /></Field><Field label="Website"><input name="website_url" type="url" defaultValue={profile.website_url || ""} placeholder="https://" /></Field><Field label="Address"><input name="address_line_1" defaultValue={profile.address_line_1 || ""} /></Field><Field label="City"><input name="city" defaultValue={profile.city || ""} /></Field><Field label="Region"><input name="region" defaultValue={profile.region || ""} /></Field><Field label="Business description" wide><textarea name="description" rows={4} defaultValue={profile.description || ""} /></Field></div><div className="settings-footer"><div><small>Timezone: {profile.timezone} · Currency: {profile.currency}</small><small>Managed by workspace configuration.</small></div><button className="primary-button" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button></div></form>;
 }
 function Field({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) { return <label className={wide ? "field field-wide" : "field"}><span>{label}</span>{children}</label>; }
 function RecordModal({ kind, guests, rooms, properties, roomTypes, profileCurrency, saving, onClose, onSubmit }: { kind: Exclude<ModalKind, null>; guests: GuestRow[]; rooms: RoomRow[]; properties: PropertyRow[]; roomTypes: RoomTypeRow[]; profileCurrency: string; saving: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
