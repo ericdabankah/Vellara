@@ -71,7 +71,7 @@ No route accepts a free-form organization ID for this initial slice. Future tena
 
 ## Phone number registration and verification
 
-Phone registration, ownership verification, and channel activation are specified separately in [PHONE_NUMBER_VERIFICATION_V1.md](./PHONE_NUMBER_VERIFICATION_V1.md). That document is a design contract only. The current API does not expose phone routes, no voice or WhatsApp provider has been approved, and no number can be activated through this API yet.
+Phone registration, ownership verification, and channel activation are specified separately in [PHONE_NUMBER_VERIFICATION_V1.md](./PHONE_NUMBER_VERIFICATION_V1.md). That document records the approved provider direction: Retell AI for voice, Meta WhatsApp Cloud API for WhatsApp, and OpenAI as the shared intelligence engine. It remains a design contract until provider-specific requirements, credentials, webhook security and isolated-database tests are complete. The current API does not expose phone routes, and no number can be activated through this API yet.
 
 ## Compatibility
 
