@@ -40,6 +40,11 @@ type BusinessProfileRow = {
   display_name: string;
 };
 
+type OrganizationModuleRow = {
+  organization_id: string;
+  module_key: string;
+};
+
 export default function AuthGate({ children }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -148,6 +153,24 @@ export default function AuthGate({ children }: Props) {
       return;
     }
 
+    // The legacy business_type field is a signup descriptor, not the source of
+    // truth for enabled verticals. Fall back only while the module table is not
+    // available (for example, before the property migrations are deployed).
+    const moduleResult = await supabase
+      .from("organization_modules")
+      .select("organization_id, module_key")
+      .in("organization_id", organizations.map((organization) => organization.id))
+      .eq("is_enabled", true);
+
+    const modulesByOrganization = new Map<string, string[]>();
+    if (!moduleResult.error) {
+      for (const module of (moduleResult.data ?? []) as OrganizationModuleRow[]) {
+        const current = modulesByOrganization.get(module.organization_id) ?? [];
+        current.push(module.module_key);
+        modulesByOrganization.set(module.organization_id, current);
+      }
+    }
+
     const businessByOrganization = new Map(
       ((businessResult.data ?? []) as BusinessProfileRow[]).map((business) => [business.organization_id, business]),
     );
@@ -159,7 +182,11 @@ export default function AuthGate({ children }: Props) {
         return {
           id: organization.id,
           name: business?.display_name || organization.name,
-          businessType: business?.business_type || "hotel",
+          businessType: moduleResult.error
+            ? business?.business_type || "workspace"
+            : (modulesByOrganization.get(organization.id) ?? [])
+                .map((moduleKey) => moduleKey === "hospitality" ? "Hospitality" : moduleKey === "real_estate" ? "Real estate" : moduleKey)
+                .join(" + ") || "No modules enabled",
           role: membership?.role || "member",
         };
       })
@@ -356,7 +383,7 @@ export default function AuthGate({ children }: Props) {
           <p>Tell us about the business VELLARA will help you run. You can complete the finer details later.</p>
           <form onSubmit={createWorkspace} className="auth-form">
             <label><span>Business name</span><div><Building2/><input value={businessName} onChange={(event) => setBusinessName(event.target.value)} required minLength={2} maxLength={120} placeholder="e.g. The Garden Hotel" /></div></label>
-            <label><span>Business type</span><select value={businessType} onChange={(event) => setBusinessType(event.target.value)}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></label>
+            <label><span>Starting business type</span><select value={businessType} onChange={(event) => setBusinessType(event.target.value)}><option value="hotel">Hotel / hospitality</option><option value="real_estate">Real estate</option><option value="other">Other</option></select></label><small className="auth-footnote">This sets your initial profile only. You can add hospitality and real-estate properties independently later.</small>
             {errorMessage && <div className="auth-error" role="alert">{errorMessage}</div>}
             <button className="auth-submit" disabled={submitting}>{submitting ? "Creating workspace…" : "Create workspace"}</button>
           </form>
