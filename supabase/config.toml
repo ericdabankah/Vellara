@@ -1,0 +1,5 @@
+# Supabase project configuration.
+# Keep external payment webhooks unauthenticated at the platform JWT layer.
+# The function verifies Paystack's own signature before accepting any event.
+[functions.paystack-webhook]
+verify_jwt = false
