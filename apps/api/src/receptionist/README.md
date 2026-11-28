@@ -6,6 +6,7 @@ This folder contains the first provider-independent TypeScript boundary for the 
 
 - `contracts.ts`: shared channel, normalized event, conversation, tool and orchestration contracts.
 - `validate-event.ts`: strict shape/bounds validation for an already normalized provider event candidate.
+- `verify-signature.ts`: Web Crypto verification of Retell and Meta signatures against the untouched request body.
 
 ## Trust boundary
 
@@ -18,12 +19,20 @@ This folder contains the first provider-independent TypeScript boundary for the 
 
 The production ingestion path must perform those checks before constructing a `ReceptionistEvent`. In particular, `organizationId` is intentionally absent from `ProviderEventCandidate`: it must come from the server-owned provider-connection registry, never from a provider payload or model argument.
 
+## Signature verification
+
+- Read and retain the raw request body before JSON parsing. Do not serialize a parsed object and verify that serialization.
+- Retell uses `X-Retell-Signature` in `v=<unix-ms>,d=<hex>` form. Verify with the Retell API key marked with the webhook badge; the signed message is the raw body followed by the timestamp, and the timestamp must be within five minutes.
+- Meta uses `X-Hub-Signature-256: sha256=<hex>`, keyed with the Meta app secret over the raw request body.
+- Meta's signature has no timestamp. Signature verification does not replace event deduplication, durable inbox persistence, or idempotent processing.
+- The helpers return a boolean and do not parse payloads, resolve tenants, or authorize actions. Secrets must be supplied by server-side secret bindings and never by browser input.
+
 ## Next integration steps
 
 1. Add runtime tests once the Worker project test harness is bootstrapped.
 2. Implement a durable provider-event inbox and unique provider/event key.
-3. Implement provider-specific signature verification using current Retell and Meta documentation.
-4. Resolve active provider connections to tenant IDs in trusted server code.
+3. Resolve active provider connections to tenant IDs in trusted server code.
+4. Persist/deduplicate events before asynchronous processing.
 5. Add the OpenAI adapter behind a bounded orchestration interface.
 6. Add domain tools only when their server-side business services and authorization tests exist.
 
