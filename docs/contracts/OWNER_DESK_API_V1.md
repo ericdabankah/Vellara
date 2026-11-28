@@ -69,6 +69,10 @@ The caller cannot submit organization ID, user ID, owner role, membership status
 
 No route accepts a free-form organization ID for this initial slice. Future tenant-scoped routes must resolve the requested organization through active membership before domain work. RLS must independently enforce row access.
 
+## Phone number registration and verification
+
+Phone registration, ownership verification, and channel activation are specified separately in [PHONE_NUMBER_VERIFICATION_V1.md](./PHONE_NUMBER_VERIFICATION_V1.md). That document is a design contract only. The current API does not expose phone routes, no voice or WhatsApp provider has been approved, and no number can be activated through this API yet.
+
 ## Compatibility
 
-This contract is deliberately narrow. It does not yet define inventory, reservations, payments, staff PINs, telephone, WhatsApp, mini-website publishing, AI tool calls or QR check-in. Those domains require separate state machines and contracts before implementation.
+This contract remains deliberately narrow. Inventory, reservations, payments, staff PINs, mini-website publishing, AI tool calls and QR check-in require separate state machines and contracts before implementation.
