@@ -105,15 +105,18 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
       propertyDb.from("room_types").select("id,property_id,name,default_capacity,default_nightly_rate_minor,is_active,archived_at").eq("organization_id", workspace.id).eq("is_active", true).is("archived_at", null).order("name", { ascending: true }),
     ]);
     if (requestId !== requestVersion.current) return;
-    if (propertyRows.error || moduleRows.error) {
+    const propertySchemaFailure = propertyRows.error || moduleRows.error || roomTypeRows.error;
+    if (propertySchemaFailure) {
       setPropertySchemaReady(false);
-      setPropertySchemaError(propertyRows.error?.message || moduleRows.error?.message || "Property schema is unavailable.");
+      setPropertySchemaError(propertySchemaFailure.message || "One or more required property tables are unavailable.");
+      setProperties([]);
+      setRoomTypes([]);
     } else {
       setPropertySchemaReady(true);
       setPropertySchemaError("");
       setProperties((propertyRows.data ?? []) as PropertyRow[]);
+      setRoomTypes((roomTypeRows.data ?? []) as RoomTypeRow[]);
     }
-    if (!roomTypeRows.error) setRoomTypes((roomTypeRows.data ?? []) as RoomTypeRow[]);
     const failed = [calls.error, reservations.error, guests.error, rooms.error, phones.error, routes.error, receptionists.error, plans.error, entitlements.error, prices.error, activities.error, subscription.error, profile.error, callCount.error, reservationCount.error, guestCount.error, roomCount.error, occupiedCount.error, roomTypeRows.error].find(Boolean);
     if (failed) setError(failed.message);
     else setData({
