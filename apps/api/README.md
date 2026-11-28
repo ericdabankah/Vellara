@@ -60,23 +60,33 @@ Before public rollout, add automated Worker runtime tests, request rate limiting
 
 ## Cloudflare project bootstrap
 
-This folder is a new Worker project and uses the current Cloudflare `cf` CLI workflow, not Wrangler.
+This API directory already contains source files but has no package manifest or Vite project configuration. Cloudflare documents `cf init .` for an existing app that it can detect (for example, a configured Vite app). Do **not** assume it can scaffold this non-empty, unconfigured directory directly.
 
-From this directory, run:
+Use a clean temporary directory to generate the official Worker scaffold, then merge the generated project files into this folder without replacing the existing API entrypoint:
+
+From `apps/api`:
 
 ```sh
-cf init .
+cf init ../vellara-api-scaffold --package-manager npm
 ```
 
-Review the generated project changes. The scaffold should provide `cloudflare.config.ts`, package scripts, Cloudflare Vite/Vitest integration, and generated Worker binding types. Do not add `wrangler.toml`, `wrangler.json`, or `wrangler.jsonc` to this new project.
+Review the scaffold before copying anything. Bring across its `package.json`, `cloudflare.config.ts`, `vite.config.ts`, `vitest.config.ts`, and `tsconfig.json`. Merge the generated `.gitignore` entries rather than overwriting an existing repository file. Preserve this API's existing `src/index.ts` and `src/receptionist/` files. Review the generated smoke test and adapt it rather than overwriting `test/receptionist/`.
 
-After bootstrap:
+Then, from `apps/api`:
 
-1. Declare `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `WEB_ORIGINS` in `cloudflare.config.ts`. Use a secret binding for the publishable key; do not commit its value.
-2. Set local development values through the CLI-supported local secret/environment files, excluded from Git.
-3. Generate binding types with `cf workers types`.
-4. Add Worker runtime tests using the scaffold's Workers Vitest integration.
-5. Run typecheck, tests and build before creating a deployment.
-6. Configure production `WEB_ORIGINS` only after the actual frontend origin is approved.
+```sh
+npm install
+cf workers types
+```
 
-The source uses the generated global `Env` and `ExportedHandler` types. Do not hand-maintain a duplicate binding interface.
+Add `.cloudflare/` to the API or repository `.gitignore`; Cloudflare's current existing-project instructions explicitly note that generated type/build output is not automatically ignored. Do not add `wrangler.toml`, `wrangler.json`, or `wrangler.jsonc` to this project.
+
+After scaffold review:
+
+1. Declare `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `WEB_ORIGINS` in `cloudflare.config.ts`. Keep the publishable key in a server-side secret binding; never commit its value.
+2. Set local development values through the CLI-supported local environment files, excluded from Git.
+3. Configure the test environment to load the Cloudflare Worker runtime and run the existing `test/receptionist/` suites.
+4. Run typecheck, tests and build. Fix failures before opening live webhook routes.
+5. Configure production `WEB_ORIGINS` only after the actual frontend origin is approved.
+
+The source uses generated global `Env` and `ExportedHandler` types. Do not hand-maintain a duplicate binding interface.
