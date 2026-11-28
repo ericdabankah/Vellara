@@ -164,7 +164,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     setSaving(false);
   }
 
-  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is not active yet</h2><p>The Owner Desk is ready for this module, but the connected database does not expose the new property tables yet. The migration is being reviewed and has not been applied to the live database.</p><small>{schemaError}</small></section>;
+  if (!schemaReady) return <section className="surface property-schema-note"><div className="empty-icon"><BedDouble /></div><h2>Property foundation is unavailable</h2><p>The Owner Desk could not load every required property table. This can mean the property migrations have not been applied, or the current workspace does not have the required database permissions. Existing property data is hidden until the full schema is available.</p><small>{schemaError || "Refresh the workspace or ask an administrator to check the property database migrations and access policies."}</small></section>;
 
   if (selected) return <div className="property-management">
     <div className="property-detail-back"><button className="secondary-button" onClick={() => { setSelectedId(""); setEditingProperty(false); setAddingType(false); setEditingType(null); setError(""); setNotice(""); }}><ChevronLeft size={15} />All properties</button><span className="property-vertical">{selected.vertical === "hospitality" ? "HOSPITALITY PROPERTY" : "REAL ESTATE PROPERTY"}</span></div>
