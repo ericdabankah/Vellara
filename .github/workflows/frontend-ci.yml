@@ -5,6 +5,8 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
   push:
     branches:
       - main
@@ -12,6 +14,8 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
 
 jobs:
   build:
@@ -30,3 +34,35 @@ jobs:
         run: npm install
       - name: Type-check and build
         run: npm run build
+
+  postgres-migration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vellara_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vellara_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Replay E.164 correction and verify constraints
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: vellara_test
+        run: psql --set ON_ERROR_STOP=1 --file supabase/tests/e164_phone_constraints_test.sql
