@@ -376,3 +376,13 @@ td>small{font-size:9px;color:#9ba49d;margin-top:4px}
 .activity-timeline-item>div>small,.activity-timeline-item>time{font-size:8px;color:#89948b}
 .activity-timeline-item>time{white-space:nowrap}
 @media(max-width:740px){.room-status-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-timeline-item{grid-template-columns:28px minmax(0,1fr)}.activity-timeline-item>time{grid-column:2}.room-status-summary-card{padding:9px}.room-status-summary-card .status-pill{font-size:7px}}
+
+
+/* International phone entry */
+.phone-input{display:flex;flex-direction:column;gap:7px;width:100%}
+.phone-input-controls{display:grid;grid-template-columns:minmax(145px, .9fr) minmax(0,1.4fr);gap:8px}
+.phone-input-controls select,.phone-input-controls input{width:100%;min-width:0}
+.phone-input-hint,.phone-input-error{font-size:10px;line-height:1.45;color:var(--muted)}
+.phone-input-error{color:var(--red)}
+.phone-input-controls input[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 2px #a9473912}
+@media(max-width:520px){.phone-input-controls{grid-template-columns:1fr}}
