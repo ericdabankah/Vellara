@@ -30,7 +30,7 @@ The production ingestion path must perform those checks before constructing a `R
 
 ## Next integration steps
 
-1. Add runtime tests once the Worker project test harness is bootstrapped.
+1. Run the focused Vitest suites after the Worker project test harness is bootstrapped.
 2. Implement a durable provider-event inbox and unique provider/event key.
 3. Resolve active provider connections to tenant IDs in trusted server code.
 4. Persist/deduplicate events before asynchronous processing.
