@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./property-media.css";
-import { Archive, Check, CloudUpload, Eye, Image as ImageIcon, Info, Layers3, Plus, ShieldCheck, Trash2, Upload, X } from "lucide-react";
+import { CloudUpload, Eye, Image as ImageIcon, Info, Layers3, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 
 type Category = "exterior" | "interior" | "amenity" | "view" | "floor_plan" | "other";
 type DraftAsset = {
@@ -26,6 +26,7 @@ const maxBytes = 20 * 1024 * 1024;
 
 export default function PropertyMediaWorkspace({ propertyName, propertyStatus }: { propertyName: string; propertyStatus: string }) {
   const [assets, setAssets] = useState<DraftAsset[]>([]);
+  const assetsRef = useRef<DraftAsset[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [dragging, setDragging] = useState(false);
   const [fileError, setFileError] = useState("");
@@ -33,7 +34,8 @@ export default function PropertyMediaWorkspace({ propertyName, propertyStatus }:
   const selected = assets.find((asset) => asset.id === selectedId) ?? assets[0] ?? null;
   const readyCount = useMemo(() => assets.length, [assets]);
 
-  useEffect(() => () => assets.forEach((asset) => URL.revokeObjectURL(asset.previewUrl)), []);
+  useEffect(() => { assetsRef.current = assets; }, [assets]);
+  useEffect(() => () => assetsRef.current.forEach((asset) => URL.revokeObjectURL(asset.previewUrl)), []);
 
   function addFiles(fileList: FileList | File[]) {
     setFileError("");
