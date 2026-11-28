@@ -37,6 +37,7 @@ Expected privilege posture after the complete migration stack is replayed:
 - Tenant-owned operational tables: no privileges for `anon` or `PUBLIC`.
 - Read-only tenant tables: `authenticated` retains SELECT only.
 - Guests, rooms, and reservations: `authenticated` retains the existing SELECT/INSERT and explicitly granted UPDATE capabilities, subject to RLS; no DELETE, TRUNCATE, REFERENCES, or TRIGGER.
+- Property-domain tables: `authenticated` retains SELECT/INSERT subject to RLS and only the approved column-level UPDATE grants. The follow-up migration `20261128100000_restrict_property_table_update_privileges.sql` revokes inherited table-level UPDATE on `organization_modules`, `properties`, `property_staff_assignments`, and `room_types` before restoring the column allowlists.
 - Subscription catalogue tables: `anon` and `authenticated` retain SELECT only; no INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, or TRIGGER.
 - `service_role`: existing service-role access remains unchanged.
 - No global default-privilege change is proposed; the migration is scoped to the inspected tables.
@@ -85,6 +86,7 @@ These tests must be run after replaying the complete migration chain, including 
 | GRANT-04 | Anonymous/authenticated role reads subscription catalogue | Allowed; SELECT only |
 | GRANT-05 | Authenticated role performs permitted guest/room/reservation SELECT/INSERT and explicitly granted UPDATE columns | Allowed subject to RLS |
 | GRANT-06 | Service role retains required backend access | Allowed as designed |
+| GRANT-07 | Authenticated attempts table-level UPDATE on property-domain tables or updates a non-allowlisted column | Denied; approved columns remain updateable subject to RLS |
 | FN-01 | Unauthenticated caller invokes `has_property_role` | Execute denied |
 | FN-02 | Authenticated caller invokes helper with arbitrary organization/property IDs | Returns true only for owner bypass or a valid active assignment and allowed role |
 | FN-03 | Trigger functions execute with empty search path and fully qualified object references | Verified by catalog inspection |
