@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - feat/owner-desk-frontend-foundation
+      - fix/e164-phone-constraints-forward-migration
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
