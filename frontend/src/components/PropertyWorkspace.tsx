@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Archive, BedDouble, Check, ChevronLeft, CircleHelp, Edit3, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import PropertyMediaWorkspace from "./PropertyMediaWorkspace";
 
 type Property = {
   id: string;
@@ -52,6 +53,7 @@ const bedLabels: { key: BedKey; label: string }[] = [
 
 export default function PropertyWorkspace({ workspaceId, properties, profile, schemaReady, schemaError, onRefresh }: Props) {
   const [selectedId, setSelectedId] = useState("");
+  const [propertyTab, setPropertyTab] = useState<"overview" | "media">("overview");
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -181,6 +183,8 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     {error && <div className="inline-alert alert-error" role="alert"><CircleHelp size={15} />{error}<button onClick={() => setError("")} aria-label="Dismiss"><X size={14} /></button></div>}
     {notice && <div className="inline-alert alert-success" role="status"><Check size={15} />{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14} /></button></div>}
     <section className="surface property-detail-header"><div><span className="eyebrow">PROPERTY OVERVIEW</span><h2>{selected.name}</h2><p>{[selected.city, selected.region].filter(Boolean).join(", ") || "Location not set"} · {selected.status}</p></div><button className="primary-button" onClick={() => setEditingProperty((value) => !value)}><Edit3 size={15} />{editingProperty ? "Close editor" : "Edit details"}</button></section>
+    <div className="property-workspace-tabs" role="tablist" aria-label="Property workspace"><button type="button" role="tab" aria-selected={propertyTab === "overview"} className={propertyTab === "overview" ? "property-workspace-tab active" : "property-workspace-tab"} onClick={() => setPropertyTab("overview")}>Overview</button><button type="button" role="tab" aria-selected={propertyTab === "media"} className={propertyTab === "media" ? "property-workspace-tab active" : "property-workspace-tab"} onClick={() => setPropertyTab("media")}>Media library</button></div>
+    {propertyTab === "media" ? <PropertyMediaWorkspace propertyName={selected.name} propertyStatus={selected.status} /> : <>
     {editingProperty && <form className="surface settings-form" onSubmit={saveProperty}><div className="settings-section-heading"><div><h2>Property details</h2><p>Changes apply to this property only. Vertical and tenant identity cannot be changed.</p></div><span className="settings-readonly"><ShieldCheck size={14} />Property-scoped</span></div><div className="form-grid">
       <Field label="Property name"><input name="name" defaultValue={selected.name} required minLength={2} maxLength={120} /></Field>
       <Field label="Public slug"><input name="slug" defaultValue={selected.slug} required pattern="[a-z0-9]+(-[a-z0-9]+)*" /></Field>
@@ -198,6 +202,7 @@ export default function PropertyWorkspace({ workspaceId, properties, profile, sc
     </section>}
     {selected.vertical === "real_estate" && <section className="surface property-type-empty"><ShieldCheck /><h3>Real-estate workspace foundation</h3><p>Property details are ready. Listings, viewings, offers, sales and rental workflows will be introduced as a separate real-estate domain, not as hotel room inventory.</p></section>}
     {(addingType || editingType) && <RoomTypeModal key={editingType?.id || "new"} type={editingType} currency={currency} saving={saving} onClose={() => { setAddingType(false); setEditingType(null); }} onSubmit={saveRoomType} />}
+    </>}
   </div>;
 
   return <div className="property-management">
