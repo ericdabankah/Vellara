@@ -66,6 +66,14 @@ The candidate chain contains these migration responsibilities:
 
 The complete chain must be replayed in order against a fresh isolated database. Testing only the last migration or only the foundation file is insufficient.
 
+## 3A. Detailed property and hospitality booking contract
+
+The detailed physical model for public property identity, publication, room-type reservation line items, physical room allocations, inventory holds, currency rules, legacy backfill, RLS and required tests is documented separately:
+
+- [VELLARA Property Identity and Hospitality Booking Model v1](VELLARA_PROPERTY_IDENTITY_AND_HOSPITALITY_BOOKING_MODEL_V1.md)
+
+That document is the current schema-design reference for the next implementation phase. Its unresolved decisions, especially pending reservation semantics and hold duration, must be settled with the backend owner before executable migration SQL is generated.
+
 ## 4. Remaining schema work, in dependency order
 
 The property foundation is not the complete VELLARA V1 database. The following work remains.
