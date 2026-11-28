@@ -99,8 +99,11 @@ export function validateProviderEventCandidate(
   }
 
   const occurredAt = requiredString(input.occurredAt, "occurredAt", 40);
-  if (!Number.isFinite(Date.parse(occurredAt))) {
-    throw new InvalidProviderEventError("occurredAt must be a valid date.");
+  if (
+    !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})$/.test(occurredAt) ||
+    !Number.isFinite(Date.parse(occurredAt))
+  ) {
+    throw new InvalidProviderEventError("occurredAt must be an ISO-8601 timestamp with an explicit timezone.");
   }
 
   const direction = requiredString(input.direction, "direction", 20);
