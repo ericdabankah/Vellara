@@ -188,6 +188,23 @@ begin
       using errcode = '23514';
   end if;
 
+  -- The property-scoped unique index normalizes room numbers. Detect legacy
+  -- collisions before adding it so operators get a clear remediation message.
+  select count(*) into ambiguous_org_count
+  from (
+    select organization_id, lower(btrim(room_number))
+    from public.rooms
+    group by organization_id, lower(btrim(room_number))
+    having count(*) > 1
+  ) duplicate_room_numbers;
+
+  if ambiguous_org_count > 0 then
+    raise exception
+      'Property migration stopped: % organization/room-number groups collide after case and whitespace normalization. Resolve these explicitly before replay.',
+      ambiguous_org_count
+      using errcode = '23514';
+  end if;
+
   select count(*) into ambiguous_org_count
   from (
     select legacy_orgs.organization_id
@@ -243,9 +260,14 @@ where not exists (
     and property.vertical = 'hospitality'
 );
 
+-- Clean up a leftover temp table if a prior non-transactional replay failed
+-- after creating it on this same migration connection.
+drop table if exists pg_temp.vellara_legacy_property_map;
+
 -- Freeze one unambiguous organization-to-property mapping for this migration.
+-- Do not depend on the migration runner wrapping this file in one transaction.
+-- Keep the mapping for this migration session and explicitly drop it after the backfill.
 create temporary table vellara_legacy_property_map
-on commit drop
 as
 select property.organization_id, max(property.id::text)::uuid as property_id
 from public.properties property
@@ -329,6 +351,8 @@ set property_id = mapping.property_id
 from vellara_legacy_property_map mapping
 where reservation.property_id is null
   and mapping.organization_id = reservation.organization_id;
+
+drop table vellara_legacy_property_map;
 
 -- Existing data is assigned before these columns become mandatory.
 alter table public.rooms alter column property_id set not null;
