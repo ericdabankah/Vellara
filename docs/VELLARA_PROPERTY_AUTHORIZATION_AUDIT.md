@@ -61,7 +61,7 @@ These tests must be run after replaying the complete migration chain, including 
 | AUTH-03 | Manager reads assigned property | Allowed |
 | AUTH-04 | Manager reads a property in same organization without an active assignment | No row visible |
 | AUTH-05 | Manager creates property while matching module is enabled | Allowed; creator assignment created atomically |
-| AUTH-06 | Manager creates property while matching module is disabled | Denied |
+| AUTH-06 | Manager creates property through `create_property` while matching module is disabled | Allowed; module is re-enabled and property is created in the same transaction |\n| AUTH-06A | Manager bypasses the RPC and directly inserts a property while its module is disabled | Denied by the property INSERT policy |
 | AUTH-07 | Manager attempts to insert or revoke a staff assignment | Denied |
 | AUTH-08 | Owner assigns an active organization member | Allowed |
 | AUTH-09 | Owner attempts to assign a non-member or inactive organization member | Denied |
