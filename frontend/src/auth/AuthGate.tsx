@@ -142,10 +142,20 @@ export default function AuthGate({ children }: Props) {
       return;
     }
 
-    const businessResult = await supabase
-      .from("business_profiles")
-      .select("organization_id, business_type, display_name")
-      .in("organization_id", organizations.map((organization) => organization.id));
+    // Load the legacy profile and current module state together. The module
+    // query may fail before the property migrations are deployed; that one
+    // failure is intentionally non-blocking and falls back to the profile.
+    const [businessResult, moduleResult] = await Promise.all([
+      supabase
+        .from("business_profiles")
+        .select("organization_id, business_type, display_name")
+        .in("organization_id", organizations.map((organization) => organization.id)),
+      supabase
+        .from("organization_modules")
+        .select("organization_id, module_key")
+        .in("organization_id", organizations.map((organization) => organization.id))
+        .eq("is_enabled", true),
+    ]);
 
     if (businessResult.error) {
       setErrorMessage(businessResult.error.message);
@@ -156,11 +166,6 @@ export default function AuthGate({ children }: Props) {
     // The legacy business_type field is a signup descriptor, not the source of
     // truth for enabled verticals. Fall back only while the module table is not
     // available (for example, before the property migrations are deployed).
-    const moduleResult = await supabase
-      .from("organization_modules")
-      .select("organization_id, module_key")
-      .in("organization_id", organizations.map((organization) => organization.id))
-      .eq("is_enabled", true);
 
     const modulesByOrganization = new Map<string, string[]>();
     if (!moduleResult.error) {
