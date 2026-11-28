@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(28);
 
 -- Property-domain objects must be created by the complete migration stack.
 select ok(to_regclass('public.organization_modules') is not null, 'organization_modules exists');
