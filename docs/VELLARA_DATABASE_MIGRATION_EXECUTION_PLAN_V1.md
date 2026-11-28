@@ -168,6 +168,7 @@ Retell and Meta handle communications; OpenAI supplies intelligence; VELLARA rem
 - Check effective privileges using `has_table_privilege` and `has_column_privilege`, not only by reading GRANT statements.
 - UPDATE policies must include both `USING` and `WITH CHECK`, and the role must have the required SELECT policy.
 - Avoid SECURITY DEFINER unless there is a documented privilege boundary requiring it. Any such function must have a fixed search path, minimal grants, strict caller validation and explicit EXECUTE revocations.
+- The current property candidate includes `private.has_property_role` as a SECURITY DEFINER helper executable by authenticated users, and `private.assign_property_creator` as a trigger-only SECURITY DEFINER helper with EXECUTE revoked from browser roles. During isolated replay, verify the `private` schema is not exposed through the Data API, inspect function owners and effective EXECUTE grants, and test both helpers under real authenticated JWT contexts. The public `create_property` RPC is SECURITY INVOKER and should remain callable only by authenticated users.
 - Public-facing reads must not expose guest details, staff assignments, private asset metadata, payment records or unpublished property data.
 - Never expose service-role or secret API keys in frontend code.
 - Keep tenant scope and authorization checks in VELLARA's backend/database boundary.
