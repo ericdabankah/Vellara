@@ -88,7 +88,7 @@ These tests must be run after replaying the complete migration chain, including 
 | GRANT-06 | Service role retains required backend access | Allowed as designed |
 | GRANT-07 | Authenticated attempts table-level UPDATE on property-domain tables or updates a non-allowlisted column | Denied; approved columns remain updateable subject to RLS |
 | FN-01 | Unauthenticated caller invokes `has_property_role` | Execute denied |
-| FN-02 | Authenticated caller invokes helper with arbitrary organization/property IDs | Returns true only for owner bypass or a valid active assignment and allowed role |
+| FN-02 | Authenticated caller invokes helper with arbitrary organization/property IDs | Returns true for an active owner of the supplied organization; for non-owners, only for an allowed role with an active assignment to that exact organization/property tuple |
 | FN-03 | Trigger functions execute with empty search path and fully qualified object references | Verified by catalog inspection |
 
 Also test concurrent reservation inserts and existing overlap constraints. Do not infer concurrency safety from the property RLS tests.
