@@ -18,7 +18,64 @@ begin
   if ('+0233501234567' ~ '^[+][1-9][0-9]{7,14}$') then
     raise exception 'Country code beginning with zero was accepted';
   end if;
-  if ('+23350123456' ~ '^[+][1-9][0-9]{7,14}$') then
+  if not ('+12345678' ~ '^[+][1-9][0-9]{7,14}
+  if ('+23350123456789012' ~ '^[+][1-9][0-9]{7,14}$') then
+    raise exception 'Too-long number was accepted';
+  end if;
+end;
+$$;
+
+insert into public.profiles (phone_e164) values ('+233501234567');
+insert into public.business_profiles (contact_phone_e164) values ('+233501234567');
+
+do $$
+begin
+  begin
+    insert into public.profiles (phone_e164) values ('233501234567');
+    raise exception 'profiles accepted a number without the leading plus';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.business_profiles (contact_phone_e164) values ('\233501234567');
+    raise exception 'business_profiles accepted a number with a leading backslash';
+  exception when check_violation then
+    null;
+  end;
+end;
+$$;
+) then
+    raise exception 'Minimum-length E.164 number was rejected';
+  end if;
+  if ('+1234567' ~ '^[+][1-9][0-9]{7,14}
+  if ('+23350123456789012' ~ '^[+][1-9][0-9]{7,14}$') then
+    raise exception 'Too-long number was accepted';
+  end if;
+end;
+$$;
+
+insert into public.profiles (phone_e164) values ('+233501234567');
+insert into public.business_profiles (contact_phone_e164) values ('+233501234567');
+
+do $$
+begin
+  begin
+    insert into public.profiles (phone_e164) values ('233501234567');
+    raise exception 'profiles accepted a number without the leading plus';
+  exception when check_violation then
+    null;
+  end;
+
+  begin
+    insert into public.business_profiles (contact_phone_e164) values ('\233501234567');
+    raise exception 'business_profiles accepted a number with a leading backslash';
+  exception when check_violation then
+    null;
+  end;
+end;
+$$;
+) then
     raise exception 'Too-short number was accepted';
   end if;
   if ('+23350123456789012' ~ '^[+][1-9][0-9]{7,14}$') then
