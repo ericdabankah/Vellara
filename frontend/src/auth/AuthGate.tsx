@@ -399,6 +399,7 @@ export default function AuthGate({ children }: Props) {
           </form>
           {mode === "signin" && <div className="auth-forgot"><button type="button" onClick={() => void requestPasswordReset()} disabled={submitting}>Forgot password?</button></div>}
           <div className="auth-switch">{mode === "signin" ? "New to VELLARA?" : "Already have an account?"} <button onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setNotice(""); setErrorMessage(""); }}>{mode === "signin" ? "Create an account" : "Sign in"}</button></div>
+          <a className="auth-preview-link" href="/preview">Preview the Owner Desk without signing in</a>
           <small className="auth-footnote">Secure access powered by Supabase.</small>
         </section>
       </div>
