@@ -1,9 +1,11 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
+import "./preview-demo.css";
 import { Activity, BedDouble, Bell, CalendarDays, ChevronRight, CreditCard, Headphones, LayoutDashboard, LogIn, MessageSquare, Phone, Settings, ShieldCheck, Sparkles, Users, X, Zap } from "lucide-react";
 
 type Section = "Overview" | "Properties" | "Calls" | "Reservations" | "Guests" | "Rooms" | "Activity" | "Numbers" | "AI Receptionists" | "Plans" | "Settings";
 
-const sections: { name: Section; icon: React.ReactNode; group: string }[] = [
+const sections: { name: Section; icon: ReactNode; group: string }[] = [
   { name: "Overview", icon: <LayoutDashboard />, group: "WORKSPACE" },
   { name: "Properties", icon: <BedDouble />, group: "WORKSPACE" },
   { name: "Calls", icon: <Phone />, group: "WORKSPACE" },
@@ -98,6 +100,6 @@ function DataPanel({ title, subtitle, headers, rows }: { title: string; subtitle
 function ActivityPanel() {
   return <section className="surface"><div className="surface-heading"><div><span className="eyebrow">SAMPLE TIMELINE</span><h2>Recent workspace events</h2></div><Activity size={18}/></div><div className="activity-list">{[["Reservation created","Today · 10:42 AM"],["Guest profile added","Today · 09:18 AM"],["Room status updated","Yesterday · 04:32 PM"],["Property media prepared","Yesterday · 02:11 PM"]].map(([title, time]) => <div className="activity-row" key={title}><div className="activity-symbol"><Zap size={15}/></div><div><b>{title}</b><small>{time}</small></div></div>)}</div></section>;
 }
-function FeaturePanel({ icon, title, body, status }: { icon: React.ReactNode; title: string; body: string; status: string }) {
+function FeaturePanel({ icon, title, body, status }: { icon: ReactNode; title: string; body: string; status: string }) {
   return <section className="surface preview-feature-panel"><div className="preview-feature-icon">{icon}</div><span className="eyebrow">OWNER DESK MODULE</span><h2>{title}</h2><p>{body}</p><span className="status-pill status-pending">{status}</span></section>;
 }
