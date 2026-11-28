@@ -350,6 +350,7 @@ export default function AuthGate({ children }: Props) {
           <div className="auth-brand"><b>V</b><span>VELLARA<small>OWNER DESK</small></span></div>
           <h1>Connect your workspace</h1>
           <p>Add the Supabase project URL and publishable key to <code>frontend/.env.local</code> to enable secure sign-in.</p>
+          <a className="auth-preview-link" href="/preview">Preview the Owner Desk without signing in</a>
           <small className="auth-footnote">No service-role key belongs in the browser.</small>
         </section>
       </div>
