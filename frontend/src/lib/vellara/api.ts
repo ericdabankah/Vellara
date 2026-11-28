@@ -46,11 +46,11 @@ export function createVellaraApi(options: VellaraApiOptions): VellaraApi {
         response.status,
       );
     }
-    if (!payload || typeof payload !== "object" || !("data" in payload)) {
-      throw new VellaraApiError("The API returned an invalid response envelope.", "INVALID_RESPONSE", response.headers.get("x-request-id"), response.status);
+    if (payload === null || payload === undefined) {
+      throw new VellaraApiError("The API returned an empty response.", "INVALID_RESPONSE", response.headers.get("x-request-id"), response.status);
     }
-    const envelope = payload as { data: T; request_id?: string };
-    return { data: envelope.data, requestId: envelope.request_id ?? response.headers.get("x-request-id") };
+    // VELLARA's agreed API convention is a direct JSON success object, not a data envelope.
+    return { data: payload as T, requestId: response.headers.get("x-request-id") };
   }
   return {
     listProperties: () => request<PropertySummary[]>("/owner/properties"),
