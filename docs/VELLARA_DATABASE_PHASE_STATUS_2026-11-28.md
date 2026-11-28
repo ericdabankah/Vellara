@@ -113,15 +113,16 @@ Still to confirm with backend/payment integration before SQL:
 
 ## 6. Environment and release restrictions
 
-The current execution environment has no Supabase CLI, Docker or local PostgreSQL client. An attempt to invoke the CLI through `npx` timed out. The user previously declined a hosted Supabase development branch because of potential charges.
+The current interactive execution environment has no Supabase CLI, Docker or local PostgreSQL client. An attempt to invoke the CLI through `npx` timed out. To avoid a paid hosted Supabase branch, PR #35 adds a GitHub Actions workflow that installs the Supabase CLI and starts an isolated local Supabase stack on a GitHub-hosted runner using Docker. Its first run exposed an unsupported CLI flag; the workflow has been corrected and its replay/test run is pending.
 
 Therefore:
 
 - Do not apply these migrations to the live Supabase project.
 - Do not create a paid Supabase branch or project without explicit approval after showing the exact cost.
 - Do not claim the candidate migration chain is tested or production-ready.
-- Continue static review and prepare implementation artifacts only where they can be properly verified.
-- Before executable migration generation, restore an approved isolated test environment and use the Supabase CLI migration workflow.
+- Use the isolated GitHub Actions stack to replay the complete candidate migration chain and run pgTAP/database lint.
+- Use the Supabase CLI migration workflow for any new migration file; do not hand-invent migration filenames.
+- Do not treat a successful empty-database replay as a substitute for populated legacy fixtures, JWT authorization tests or concurrency tests.
 
 ## 7. Release decision
 
