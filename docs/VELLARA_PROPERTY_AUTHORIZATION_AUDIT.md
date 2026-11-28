@@ -103,7 +103,7 @@ Also test concurrent reservation inserts and existing overlap constraints. Do no
 ## 6. Release blockers and constraints
 
 - Do not apply migrations to production until an isolated replay succeeds and all required authorization tests pass.
-- The corrected legacy backfill from PR #11 has now been copied into the PR #12 and PR #14 branch heads so the dependent property-creation and inventory stack no longer carries the older mapping logic. It must still be verified by isolated replay, including reuse of existing room types and temporary-table transaction behavior.
+- The corrected legacy backfill from PR #11 has now been copied into the PR #12 and PR #14 branch heads so the dependent property-creation and inventory stack no longer carries the older mapping logic. The temporary legacy-property map is now explicitly dropped after its final use rather than relying on `ON COMMIT DROP`, so the migration does not depend on the migration runner wrapping the entire file in one transaction. It still requires isolated replay, including reuse of existing room types and both transaction-wrapped and statement-autocommit execution checks where supported.
 - The source PR #11 remains open as the original correction review. Do not merge duplicate copies independently; review the migration as it appears in the PR #12/PR #14 stack.
 - Verify migration order and dependency branches before merging the stacked PRs.
 - Keep production read-only until explicit approval.
