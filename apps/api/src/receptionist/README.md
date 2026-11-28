@@ -7,6 +7,7 @@ This folder contains the first provider-independent TypeScript boundary for the 
 - `contracts.ts`: shared channel, normalized event, conversation, tool and orchestration contracts.
 - `validate-event.ts`: strict shape/bounds validation for an already normalized provider event candidate.
 - `verify-signature.ts`: Web Crypto verification of Retell and Meta signatures against the untouched request body, plus Meta's GET subscription challenge check.
+- `provider-event-inbox-design.md`: tenant-safe provider connection registry and durable inbox design, based on a read-only inspection of the current Supabase schema.
 
 ## Trust boundary
 
