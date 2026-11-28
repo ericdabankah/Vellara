@@ -115,7 +115,9 @@ Proposed resolution rules to validate before SQL:
 - If a legacy room has a non-null rate whose currency conflicts with the property's resolved currency, stop the backfill and produce an actionable report. Never reinterpret a numeric amount in another currency.
 - A property or organization currency change must not rewrite historic quotes, reservations or payment records.
 
-The existing default GHS on `rooms.currency` must not silently override a property-level currency decision. The migration design must explicitly handle legacy rows and future inserts.
+**Read-only live-schema check (2026-11-28):** `rooms.currency` is non-null and defaults to `GHS`; `nightly_rate_minor` is nullable; `capacity` is constrained to 1–30; `room_type` is non-null with a `Standard` default and a trimmed length constraint of 1–80; `currency` must match a three-letter uppercase code. These existing capacity and room-type constraints align with the proposed room-type backfill bounds. They do not solve currency inheritance: a room with no explicit nightly rate still carries the GHS default, which must not silently override a property-level currency decision.
+
+The migration design must explicitly handle legacy rows and future inserts. If a non-null legacy room rate uses a currency different from the property's resolved currency, fail with an actionable reconciliation report rather than reinterpreting the amount.
 
 ### Phase D: Real-estate workflows
 
