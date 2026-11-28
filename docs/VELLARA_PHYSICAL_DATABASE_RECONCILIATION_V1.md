@@ -159,22 +159,24 @@ These must be settled before RLS tests are considered accepted.
 
 ## 6. GitHub migration/PR reconciliation
 
-The open PRs are not one linear stack:
+The repository has multiple feature lines, but the current commit graph clarifies the database lineage:
 
 | PR | Base → head | Main content | Reconciliation note |
 |---|---|---|---|
-| #12 | feat/property-details-room-types → feat/atomic-property-creation | Updates property foundation migration; adds atomic create_property RPC | Required dependency for #14 |
-| #14 | feat/atomic-property-creation → feat/property-aware-rooms-reservations-rebased | Active inventory guards, inventory grant hardening, property-aware frontend | Depends on #12 |
-| #31 | feat/operational-room-management → fix/property-foundation-release-gates | Further fixes the same property foundation migration; adds property column-update grant correction | Sibling stack to #12/#14, not a clean continuation |
-| #29 | feat/operational-room-management → fix/property-schema-readiness | Frontend schema readiness and typed database contracts | Sibling of #31; overlaps frontend files changed by other PRs |
+| #12 | feat/property-details-room-types → feat/atomic-property-creation | Updates property foundation migration; adds atomic create_property RPC | First property-foundation increment |
+| #14 | feat/atomic-property-creation → feat/property-aware-rooms-reservations-rebased | Active inventory guards, inventory grant hardening, property-aware frontend | Descendant of #12 |
+| #31 | feat/operational-room-management → fix/property-foundation-release-gates | Further fixes the property foundation migration; adds property column-update grant correction | Current canonical database candidate; its head includes the #12/#14 database lineage through its ancestry |
+| #29 | feat/operational-room-management → fix/property-schema-readiness | Frontend schema readiness and typed database contracts | Separate frontend sibling of #31; overlaps frontend files |
 | #32 | fix/property-foundation-release-gates → feat/property-assets-media-contract | Media architecture specification | Stacked on #31 |
 | #33 | fix/property-schema-readiness → feat/owner-desk-property-media-ui | Local-preview media UI | Stacked on #29; no upload persistence |
 
-The same migration path, 20261126120000_property_management_foundation.sql, is modified in both the #12/#14 lineage and #31. Do not merge both branches independently or allow one copy to overwrite the other. Reconcile the final SQL once, preserving the corrected backfill/temp-table handling and the atomic property-creation RPC in one canonical branch.
+Commit comparisons confirm that `feat/operational-room-management` descends from both `feat/atomic-property-creation` and `feat/property-aware-rooms-reservations-rebased`. PR #31's head is itself ahead of the PR #14 head. Therefore, PR #31 is not a competing sibling implementation of the database foundation: it is the latest database release candidate on top of the earlier property and inventory work.
 
-PR #29 and #31 share a base but are siblings. PR #32 and #33 depend on their respective parent branches. They must be integrated only after the database foundation branch is selected and frontend/API contracts are aligned.
+**Do not merge PR #12 or PR #14 independently on top of PR #31.** Their changes are already in the candidate's ancestry. Review and replay the complete chain from the PR #31 head. Its property-foundation migration adds normalized room-number collision preflight and explicit temporary-table cleanup; its follow-up migration removes inherited table-level UPDATE on property-domain tables while preserving the approved column grants.
 
-The closed, unmerged PR #11 contains an earlier backfill correction. The corrected logic is reported as copied into later branches; do not merge the old PR independently.
+PR #29 and #31 share the `feat/operational-room-management` base but remain separate siblings for frontend/database-type review. PR #32 and #33 depend on their respective parent branches. Do not merge those frontend branches blindly because they overlap `frontend/src/App.tsx` and related files. Align their API and generated database contracts after the database candidate is verified.
+
+The closed, unmerged PR #11 contains an earlier backfill correction. Do not merge it independently; verify that its required correction is present in the current candidate.
 
 ## 7. Recommended canonical migration sequence
 
@@ -282,6 +284,6 @@ The frontend must not invent API routes or write privileged operational records 
 
 **Do not merge, replay against production, or deploy this migration stack yet.**
 
-The immediate next action is to create one canonical integration branch for the database foundation, reconcile the competing property migration file, and obtain a clean isolated Supabase project for migration replay and RLS/privilege tests. If no separate Supabase project is available, that is the infrastructure dependency to resolve before schema implementation can be validated safely.
+The canonical database candidate is now identified: PR #31's head. The next action is to inspect whether a local Supabase CLI/Docker test environment is available and use it for a clean replay. A paid hosted Supabase branch is not required for the design work and will not be created. If local isolated replay is unavailable, continue with static SQL review and schema/API contracts, but keep the database release blocked until an approved isolated test environment exists.
 
-After Gate 0 and Gate 1 pass, the team can build the real Owner Desk against the verified database/API contracts. The current simulated staging preview remains useful for visual review, but it is not a database integration test environment.
+After the migration replay, backfill fixtures, RLS/grant tests and advisor review pass, align the separate frontend PR line with the verified schema/API contracts. The current simulated staging preview remains useful for visual review, but it is not a database integration test environment.
