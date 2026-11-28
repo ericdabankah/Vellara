@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./property-media.css";
 import { Archive, Check, CloudUpload, Eye, Image as ImageIcon, Info, Layers3, Plus, ShieldCheck, Trash2, Upload, X } from "lucide-react";
 
 type Category = "exterior" | "interior" | "amenity" | "view" | "floor_plan" | "other";
