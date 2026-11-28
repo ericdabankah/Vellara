@@ -75,3 +75,23 @@ export async function verifyMetaWebhookSignature(
   const expectedDigest = await hmacSha256(appSecret, rawBody);
   return constantTimeEqual(expectedDigest, suppliedDigest);
 }
+
+/**
+ * Complete Meta's GET webhook subscription handshake. The verification token
+ * is a VELLARA-owned secret, not the Meta app secret or an access token.
+ * Returns the challenge only when mode and token both match.
+ */
+export function verifyMetaWebhookChallenge(
+  mode: string | null,
+  challenge: string | null,
+  suppliedToken: string | null,
+  expectedToken: string,
+): string | null {
+  if (mode !== "subscribe" || !challenge || challenge.length > 512) return null;
+  if (!suppliedToken || !expectedToken) return null;
+
+  const encoder = new TextEncoder();
+  const supplied = encoder.encode(suppliedToken);
+  const expected = encoder.encode(expectedToken);
+  return constantTimeEqual(supplied, expected) ? challenge : null;
+}
