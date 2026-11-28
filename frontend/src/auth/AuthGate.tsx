@@ -16,6 +16,7 @@ type RenderProps = {
   workspaces: Workspace[];
   onWorkspaceChange: (workspaceId: string) => void;
   signOut: () => Promise<void>;
+  refreshWorkspaceModules: () => Promise<void>;
 };
 
 type Props = {
@@ -210,6 +211,32 @@ export default function AuthGate({ children }: Props) {
     else setWorkspace(null);
   }, [session, loadWorkspace]);
 
+  const refreshWorkspaceModules = useCallback(async () => {
+    if (!supabase || workspaces.length === 0) return;
+    const result = await supabase
+      .from("organization_modules")
+      .select("organization_id, module_key")
+      .in("organization_id", workspaces.map((item) => item.id))
+      .eq("is_enabled", true);
+    if (result.error) return;
+
+    const modulesByOrganization = new Map<string, string[]>();
+    for (const module of (result.data ?? []) as OrganizationModuleRow[]) {
+      const current = modulesByOrganization.get(module.organization_id) ?? [];
+      current.push(module.module_key);
+      modulesByOrganization.set(module.organization_id, current);
+    }
+    const updatedWorkspaces = workspaces.map((item) => ({
+      ...item,
+      businessType: (modulesByOrganization.get(item.id) ?? [])
+        .map((moduleKey) => moduleKey === "hospitality" ? "Hospitality" : moduleKey === "real_estate" ? "Real estate" : moduleKey)
+        .join(" + ") || "No modules enabled",
+    }));
+    setWorkspaces(updatedWorkspaces);
+    const selected = updatedWorkspaces.find((item) => item.id === selectedWorkspaceId.current);
+    if (selected) setWorkspace(selected);
+  }, [workspaces]);
+
   function handleWorkspaceChange(workspaceId: string) {
     const nextWorkspace = workspaces.find((item) => item.id === workspaceId);
     if (!nextWorkspace) return;
@@ -399,5 +426,5 @@ export default function AuthGate({ children }: Props) {
     );
   }
 
-  return <>{children({ workspace, workspaces, onWorkspaceChange: handleWorkspaceChange, signOut })}</>;
+  return <>{children({ workspace, workspaces, onWorkspaceChange: handleWorkspaceChange, signOut, refreshWorkspaceModules })}</>;
 }
