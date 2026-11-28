@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  verifyMetaWebhookChallenge,
   verifyMetaWebhookSignature,
   verifyRetellWebhookSignature,
 } from "../../src/receptionist/verify-signature";
@@ -94,5 +95,29 @@ describe("provider webhook signature verification", () => {
     await expect(
       verifyMetaWebhookSignature("{}", "sha256=abc", "meta-app-secret"),
     ).resolves.toBe(false);
+  });
+
+  it("returns the Meta subscription challenge only for the expected token", () => {
+    expect(
+      verifyMetaWebhookChallenge("subscribe", "challenge-123", "vellara-token", "vellara-token"),
+    ).toBe("challenge-123");
+  });
+
+  it("rejects Meta subscription challenges with the wrong mode or token", () => {
+    expect(
+      verifyMetaWebhookChallenge("unsubscribe", "challenge-123", "vellara-token", "vellara-token"),
+    ).toBeNull();
+    expect(
+      verifyMetaWebhookChallenge("subscribe", "challenge-123", "attacker-token", "vellara-token"),
+    ).toBeNull();
+  });
+
+  it("rejects empty or oversized Meta challenges", () => {
+    expect(
+      verifyMetaWebhookChallenge("subscribe", "", "vellara-token", "vellara-token"),
+    ).toBeNull();
+    expect(
+      verifyMetaWebhookChallenge("subscribe", "x".repeat(513), "vellara-token", "vellara-token"),
+    ).toBeNull();
   });
 });
