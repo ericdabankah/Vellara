@@ -135,7 +135,8 @@ begin
     return jsonb_build_object('outcome', 'review_required', 'reason', 'verified_transaction_mismatch');
   end if;
 
-  if p_provider_channel not in ('card', 'mobile_money')
+  if p_provider_channel is null
+     or p_provider_channel not in ('card', 'mobile_money')
      or p_provider_channel <> v_attempt.expected_channel then
     update public.subscription_payment_attempts
       set status = 'review_required',
