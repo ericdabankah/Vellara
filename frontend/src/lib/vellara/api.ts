@@ -35,7 +35,7 @@ export interface VellaraApiOptions {
   fetcher?: typeof fetch;
 }
 export function createVellaraApi(options: VellaraApiOptions): VellaraApi {
-  const baseUrl = options.baseUrl.replace(/\\/+$/, "");
+  const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const fetcher = options.fetcher ?? fetch;
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
