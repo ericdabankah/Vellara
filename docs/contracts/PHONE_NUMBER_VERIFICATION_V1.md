@@ -1,6 +1,6 @@
 # VELLARA Phone Number Registration and Verification Contract v1
 
-Status: design contract only. No provider is selected and no route is enabled by this document.
+Status: provider direction approved; implementation and live provisioning are not yet enabled. This is a design contract until provider capability, credentials, security controls and isolated-database tests are verified.
 
 ## Purpose
 
@@ -97,12 +97,12 @@ Request:
 }
 ```
 
-The API selects an approved provider adapter from server configuration. The client cannot choose arbitrary provider names or submit provider credentials.
+The API selects the approved provider adapter from server configuration. The client cannot choose arbitrary provider names or submit provider credentials. VELLARA's approved provider direction is Retell AI for voice, Meta WhatsApp Cloud API for WhatsApp, and OpenAI as the shared intelligence engine.
 
 Verification is channel/provider-specific:
 
-- **Voice**: provider must prove control using its supported ownership or number-hosting flow. A generic SMS OTP must not be treated as proof of voice provisioning.
-- **WhatsApp**: use Meta's approved business onboarding/phone-number verification flow. A voice verification result must not automatically verify WhatsApp.
+- **Voice**: Retell AI is the selected voice provider. The provider adapter must use Retell's supported number import/purchase and call-control/onboarding flow. Verify Ghana number inventory, inbound/outbound capability, number ownership requirements and current pricing before enabling or purchasing. A generic SMS OTP must not be treated as proof of voice provisioning.
+- **WhatsApp**: Meta WhatsApp Cloud API is the selected channel provider. Use Meta's approved Business onboarding, WABA and phone-number registration/verification flow. A voice verification result must not automatically verify WhatsApp.
 - If a provider does not support the required proof, return a stable `VERIFICATION_UNAVAILABLE` error and leave the number pending.
 
 Response: HTTP 202 with an opaque `verification_id`, state, expiry, and safe next-step instructions. Never return a verification code or provider secret.
@@ -180,15 +180,36 @@ Never store raw OTPs. If the provider supplies a challenge reference, treat it a
 - Enforce plan number limits transactionally to prevent concurrent registrations from exceeding entitlement.
 - Channel routing must ignore every number/channel that is not verified and active.
 
+## Approved provider architecture
+
+The product-level provider decision is:
+
+- **Voice transport and call runtime: Retell AI.** Retell owns telephony/call-session integration, speech turn handling and voice-agent runtime. VELLARA owns tenant authorization, business context, call policy, routing, audit and durable business actions.
+- **WhatsApp transport: Meta WhatsApp Cloud API.** Meta owns WhatsApp message transport, templates, media and delivery/webhook events. VELLARA owns customer/business conversation state and channel policy.
+- **Intelligence: OpenAI.** OpenAI is the shared reasoning and language engine used by VELLARA's receptionist orchestration layer. Do not create separate business brains for voice and WhatsApp. Both channels should call the same tenant-aware orchestration interface and approved tool layer.
+
+### Required orchestration boundary
+
+Retell and Meta are channel adapters, not authorities for VELLARA business data. Provider webhooks must be authenticated, normalized and mapped to a tenant-owned conversation/session before invoking the orchestrator. The orchestrator must load only the tenant's authorized business context, apply role/plan/channel policy, call OpenAI, validate any proposed tool action, execute approved actions through server-side domain services, and return a channel-appropriate response.
+
+OpenAI must not receive provider secrets, Supabase service-role credentials, or unrestricted database access. Model output is untrusted input: tool calls require schema validation, authorization, idempotency and server-side business-rule checks. Booking, payment, availability, receipt and guest records remain authoritative in VELLARA's database and payment/provider systems, never in model memory.
+
+Voice and WhatsApp may have different interaction constraints, but must share tenant policy and domain tools. Maintain channel-specific session identifiers, consent/recording policy, transcript retention policy and audit metadata. Human takeover must be an explicit state transition that prevents the AI from continuing to act concurrently.
+
+### Provider-specific implementation gates
+
+Before live integration:
+
+- Confirm Retell's Ghana number availability, supported inbound/outbound routes, number import eligibility, pricing and any regulatory/business verification requirements.
+- Confirm Meta Business Portfolio/WABA onboarding, app permissions/review requirements, embedded-signup flow, webhook verification and phone-number registration prerequisites.
+- Select the OpenAI API model and deployment configuration only after defining latency, cost, data-retention and tool-calling requirements. Keep model names configurable; do not hardcode a model into business logic.
+- Store all provider credentials as Cloudflare Worker secrets. Keep only non-secret provider resource IDs/references in the database, with tenant ownership and access controls.
+- Implement signed webhook verification, replay protection, event idempotency, bounded retries, redacted logs and failure/degraded modes for each provider.
+- Do not buy numbers, create paid subscriptions, send billable traffic or enable production webhooks without explicit cost and provisioning approval.
+
 ## Provider decision gate
 
-Before implementation, choose and approve the actual providers for:
-
-1. Voice number purchase/hosting and proof of control.
-2. WhatsApp Business onboarding and phone-number registration.
-3. OTP delivery, only if the selected provider's approved flow requires VELLARA-managed OTP.
-
-The provider adapters, webhook signatures, callback URLs, pricing, supported countries, number portability, and Ghana availability cannot be safely guessed. No provider has been selected by this contract.
+Provider direction is approved as Retell AI for voice, Meta WhatsApp Cloud API for WhatsApp, and OpenAI for shared intelligence. The remaining implementation decisions are the exact Retell number/verification path, Meta onboarding mode, OpenAI model/configuration, webhook endpoints and secrets, and any separately required OTP provider. Pricing, supported countries, number portability and Ghana availability must be verified against current provider accounts/docs before provisioning. No live provider connection is implied by this approval.
 
 ## Acceptance tests
 
