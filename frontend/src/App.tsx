@@ -258,7 +258,7 @@ function OwnerDesk({ workspace, workspaces, onWorkspaceChange, signOut }: { work
     });
     if (result.error) setError(result.error.message);
     else if (!result.data?.id) setError("The property was not created. The server returned no property record.");
-    else { setNotice("Property created. Its currency and timezone inherit your workspace defaults unless overridden."); setPropertyModal(false); await reload(true); }
+    else { setNotice("Property created. Its currency and timezone inherit your workspace defaults unless overridden."); setPropertyModal(false); await reload(true); await refreshWorkspaceModules(); }
     setSaving(false);
   }
 
