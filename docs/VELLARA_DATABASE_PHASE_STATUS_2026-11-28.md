@@ -39,6 +39,10 @@ Candidate migration sequence:
 5. `20261128100000_restrict_property_table_update_privileges.sql`
    - Removes inherited table-level UPDATE on property-domain tables and restores only the approved column-level allowlists.
 
+### Static-review correction made on the readiness branch
+
+The legacy room-number preflight groups by `lower(btrim(room_number))`, but the original future unique index used only `lower(room_number)`. That mismatch could allow newly inserted values such as `101` and ` 101 ` to bypass the intended normalized uniqueness rule. The readiness branch now changes the room-number unique index to `lower(btrim(room_number))`. The room-type uniqueness and lookup indexes were aligned to `lower(btrim(name))` for the same reason. This is a source-level correction only; it has not been replayed against PostgreSQL.
+
 ### Property foundation status
 
 **Drafted, not live, not release-verified.**
