@@ -166,9 +166,9 @@ create table public.room_types (
   check (archived_at is null or not is_active)
 );
 create unique index room_types_property_name_unique
-  on public.room_types (organization_id, property_id, lower(name));
+  on public.room_types (organization_id, property_id, lower(btrim(name)));
 create index room_types_property_active_idx
-  on public.room_types (organization_id, property_id, is_active, lower(name));
+  on public.room_types (organization_id, property_id, is_active, lower(btrim(name)));
 
 -- Preflight legacy records before creating or assigning any property data.
 -- Never guess when an organization already has multiple hospitality properties.
@@ -385,7 +385,7 @@ alter table public.rooms
     references public.room_types(organization_id, property_id, id) on delete restrict;
 
 create unique index rooms_property_room_number_unique
-  on public.rooms (organization_id, property_id, lower(room_number));
+  on public.rooms (organization_id, property_id, lower(btrim(room_number)));
 create index rooms_property_status_idx
   on public.rooms (organization_id, property_id, status);
 
